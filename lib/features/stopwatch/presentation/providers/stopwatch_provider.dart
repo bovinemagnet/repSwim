@@ -30,12 +30,13 @@ class StopwatchState {
     bool? isRunning,
     DateTime? startedAt,
     Duration? baseElapsed,
+    bool clearStartedAt = false,
   }) {
     return StopwatchState(
       elapsed: elapsed ?? this.elapsed,
       lapTimes: lapTimes ?? this.lapTimes,
       isRunning: isRunning ?? this.isRunning,
-      startedAt: startedAt ?? this.startedAt,
+      startedAt: clearStartedAt ? null : startedAt ?? this.startedAt,
       baseElapsed: baseElapsed ?? this.baseElapsed,
     );
   }
@@ -67,7 +68,7 @@ class StopwatchNotifier extends StateNotifier<StopwatchState> {
       isRunning: false,
       baseElapsed: newBase,
       elapsed: newBase,
-      startedAt: null,
+      clearStartedAt: true,
     );
   }
 

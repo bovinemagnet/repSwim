@@ -139,7 +139,9 @@ class _PbTile extends StatelessWidget {
         title: Text(
           DurationUtils.formatDuration(pb.bestTime),
           style: const TextStyle(
-              fontWeight: FontWeight.bold, fontFamily: 'monospace', fontSize: 18),
+              fontWeight: FontWeight.bold,
+              fontFamily: 'monospace',
+              fontSize: 18),
         ),
         subtitle: Text(
           DurationUtils.formatPace(pb.bestTime, pb.distance),

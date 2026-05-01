@@ -19,12 +19,22 @@ class PbService {
       // Check against both existing DB PBs and any new PBs found so far in
       // this session, so a slower later lap cannot overwrite a faster earlier one.
       final combinedPbs = [...existingPbs, ...newPbs];
-      if (isNewPb(lap.time, lap.distance, session.stroke, combinedPbs)) {
+      if (isNewPb(
+        lap.time,
+        lap.distance,
+        session.stroke,
+        combinedPbs,
+        profileId: session.profileId,
+      )) {
         newPbs.removeWhere(
-          (pb) => pb.stroke == session.stroke && pb.distance == lap.distance,
+          (pb) =>
+              pb.profileId == session.profileId &&
+              pb.stroke == session.stroke &&
+              pb.distance == lap.distance,
         );
         newPbs.add(PersonalBest(
           id: _uuid.v4(),
+          profileId: session.profileId,
           stroke: session.stroke,
           distance: lap.distance,
           bestTime: lap.time,
@@ -36,16 +46,41 @@ class PbService {
     return newPbs;
   }
 
+  static List<PersonalBest> rebuildFromSessions(List<SwimSession> sessions) {
+    final orderedSessions = [...sessions]
+      ..sort((a, b) => a.date.compareTo(b.date));
+    final rebuilt = <PersonalBest>[];
+
+    for (final session in orderedSessions) {
+      final newPbs = detectNewPbs(session, rebuilt);
+      for (final pb in newPbs) {
+        rebuilt.removeWhere(
+          (existing) =>
+              existing.profileId == pb.profileId &&
+              existing.stroke == pb.stroke &&
+              existing.distance == pb.distance,
+        );
+        rebuilt.add(pb);
+      }
+    }
+
+    return rebuilt;
+  }
+
   /// Returns `true` if [lapTime] is faster than the stored PB for
   /// [stroke] / [distance], or if no PB exists yet.
   static bool isNewPb(
     Duration lapTime,
     int distance,
     String stroke,
-    List<PersonalBest> existingPbs,
-  ) {
+    List<PersonalBest> existingPbs, {
+    String? profileId,
+  }) {
     final existing = existingPbs
-        .where((pb) => pb.stroke == stroke && pb.distance == distance)
+        .where((pb) =>
+            (profileId == null || pb.profileId == profileId) &&
+            pb.stroke == stroke &&
+            pb.distance == distance)
         .toList();
 
     if (existing.isEmpty) return true;

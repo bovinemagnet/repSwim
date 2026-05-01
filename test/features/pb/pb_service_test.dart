@@ -228,4 +228,62 @@ void main() {
       expect(PbService.detectNewPbs(session, existing), isEmpty);
     });
   });
+
+  group('PbService.rebuildFromSessions', () {
+    test('rebuilds best times from remaining sessions', () {
+      final olderSession = _makeSession(
+        stroke: 'Freestyle',
+        laps: [_makeLap(1, 100, const Duration(seconds: 65))],
+      ).copyWith(date: DateTime(2024, 1, 1));
+      final newerSession = _makeSession(
+        stroke: 'Freestyle',
+        laps: [_makeLap(1, 100, const Duration(seconds: 59))],
+      ).copyWith(id: 'session-2', date: DateTime(2024, 2, 1));
+
+      final rebuilt = PbService.rebuildFromSessions([
+        newerSession,
+        olderSession,
+      ]);
+
+      expect(rebuilt, hasLength(1));
+      expect(rebuilt.first.stroke, 'Freestyle');
+      expect(rebuilt.first.distance, 100);
+      expect(rebuilt.first.bestTime, const Duration(seconds: 59));
+      expect(rebuilt.first.achievedAt, DateTime(2024, 2, 1));
+    });
+
+    test('keeps PBs isolated per swimmer profile', () {
+      final profileOneSession = _makeSession(
+        stroke: 'Freestyle',
+        laps: [_makeLap(1, 50, const Duration(seconds: 40))],
+      ).copyWith(
+        id: 'profile-one-session',
+        profileId: 'profile-one',
+        date: DateTime(2024, 1, 1),
+      );
+      final profileTwoSession = _makeSession(
+        stroke: 'Freestyle',
+        laps: [_makeLap(1, 50, const Duration(seconds: 50))],
+      ).copyWith(
+        id: 'profile-two-session',
+        profileId: 'profile-two',
+        date: DateTime(2024, 1, 1),
+      );
+
+      final rebuilt = PbService.rebuildFromSessions([
+        profileOneSession,
+        profileTwoSession,
+      ]);
+
+      expect(rebuilt, hasLength(2));
+      expect(
+        rebuilt.where((pb) => pb.profileId == 'profile-one').single.bestTime,
+        const Duration(seconds: 40),
+      );
+      expect(
+        rebuilt.where((pb) => pb.profileId == 'profile-two').single.bestTime,
+        const Duration(seconds: 50),
+      );
+    });
+  });
 }

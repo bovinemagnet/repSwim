@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../providers/dryland_providers.dart';
+import '../../../profiles/presentation/providers/profile_providers.dart';
+import '../../../templates/domain/entities/dryland_routine_template.dart';
+import '../../../templates/presentation/providers/training_template_providers.dart';
 import '../../domain/entities/dryland_workout.dart';
 import '../../domain/entities/exercise.dart';
 
@@ -16,7 +19,16 @@ class DrylandScreen extends ConsumerWidget {
     final workoutsAsync = ref.watch(drylandWorkoutsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Dryland Workouts')),
+      appBar: AppBar(
+        title: const Text('Dryland Workouts'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.folder_open_outlined),
+            tooltip: 'Routine templates',
+            onPressed: () => _showRoutineTemplatesSheet(context, ref),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddWorkoutSheet(context, ref),
         icon: const Icon(Icons.add),
@@ -30,7 +42,15 @@ class DrylandScreen extends ConsumerWidget {
           return ListView.builder(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
             itemCount: workouts.length,
-            itemBuilder: (context, i) => _WorkoutCard(workout: workouts[i]),
+            itemBuilder: (context, i) => _WorkoutCard(
+              workout: workouts[i],
+              onEdit: () => _showEditWorkoutSheet(context, ref, workouts[i]),
+              onSaveTemplate: () =>
+                  _showSaveRoutineTemplateDialog(context, ref, workouts[i]),
+              onDelete: () => ref
+                  .read(drylandWorkoutsProvider.notifier)
+                  .deleteWorkout(workouts[i].id),
+            ),
           );
         },
         loading: () =>
@@ -46,8 +66,102 @@ class DrylandScreen extends ConsumerWidget {
       isScrollControlled: true,
       useSafeArea: true,
       builder: (_) => _AddWorkoutSheet(
+        profileId: ref.read(currentProfileIdProvider),
         onSave: (workout) =>
             ref.read(drylandWorkoutsProvider.notifier).addWorkout(workout),
+      ),
+    );
+  }
+
+  void _showEditWorkoutSheet(
+    BuildContext context,
+    WidgetRef ref,
+    DrylandWorkout workout,
+  ) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => _AddWorkoutSheet(
+        profileId: ref.read(currentProfileIdProvider),
+        initialWorkout: workout,
+        onSave: (updatedWorkout) => ref
+            .read(drylandWorkoutsProvider.notifier)
+            .updateWorkout(updatedWorkout),
+      ),
+    );
+  }
+
+  Future<void> _showSaveRoutineTemplateDialog(
+    BuildContext context,
+    WidgetRef ref,
+    DrylandWorkout workout,
+  ) async {
+    final controller = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Save routine template'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'Template name'),
+          textInputAction: TextInputAction.done,
+          onSubmitted: (value) => Navigator.of(context).pop(value),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (name == null || name.trim().isEmpty) return;
+
+    final template = await ref
+        .read(drylandRoutineTemplatesProvider.notifier)
+        .saveFromWorkout(name, workout);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Saved ${template.name}.')),
+    );
+  }
+
+  void _showRoutineTemplatesSheet(BuildContext context, WidgetRef ref) {
+    showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      builder: (_) => _RoutineTemplatesSheet(
+        profileId: ref.read(currentProfileIdProvider),
+        onUseTemplate: (template) async {
+          final workoutId = _uuid.v4();
+          final workout = DrylandWorkout(
+            id: workoutId,
+            profileId: ref.read(currentProfileIdProvider),
+            date: DateTime.now(),
+            notes: template.notes,
+            exercises: [
+              for (final exercise in template.exercises)
+                Exercise(
+                  id: _uuid.v4(),
+                  workoutId: workoutId,
+                  profileId: ref.read(currentProfileIdProvider),
+                  name: exercise.name,
+                  sets: exercise.sets,
+                  reps: exercise.reps,
+                  weight: exercise.weight,
+                ),
+            ],
+          );
+          await ref.read(drylandWorkoutsProvider.notifier).addWorkout(workout);
+        },
       ),
     );
   }
@@ -77,10 +191,141 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
+class _RoutineTemplatesSheet extends ConsumerWidget {
+  const _RoutineTemplatesSheet({
+    required this.profileId,
+    required this.onUseTemplate,
+  });
+
+  final String profileId;
+  final Future<void> Function(DrylandRoutineTemplate) onUseTemplate;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final templatesAsync = ref.watch(drylandRoutineTemplatesProvider);
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.72,
+      minChildSize: 0.4,
+      maxChildSize: 0.94,
+      builder: (context, scrollController) {
+        return templatesAsync.when(
+          data: (templates) => ListView(
+            controller: scrollController,
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+            children: [
+              Row(
+                children: [
+                  Text(
+                    'Routine Templates',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleLarge
+                        ?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (templates.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 48),
+                  child: Center(
+                    child: Text('Save a dryland workout as a routine first.'),
+                  ),
+                )
+              else
+                for (final template in templates)
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.bookmarks_outlined),
+                      title: Text(template.name),
+                      subtitle: Text(
+                        '${template.exercises.length} exercise'
+                        '${template.exercises.length == 1 ? '' : 's'}',
+                      ),
+                      trailing: Wrap(
+                        spacing: 4,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.playlist_add),
+                            tooltip: 'Use routine',
+                            onPressed: () async {
+                              await onUseTemplate(template);
+                              if (!context.mounted) return;
+                              Navigator.of(context).pop();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content:
+                                      Text('Created ${template.name} workout.'),
+                                ),
+                              );
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline),
+                            tooltip: 'Delete routine',
+                            onPressed: () => ref
+                                .read(drylandRoutineTemplatesProvider.notifier)
+                                .deleteTemplate(template.id),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+            ],
+          ),
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) => Center(child: Text('Error: $error')),
+        );
+      },
+    );
+  }
+}
+
 class _WorkoutCard extends StatelessWidget {
-  const _WorkoutCard({required this.workout});
+  const _WorkoutCard({
+    required this.workout,
+    required this.onEdit,
+    required this.onSaveTemplate,
+    required this.onDelete,
+  });
 
   final DrylandWorkout workout;
+  final VoidCallback onEdit;
+  final VoidCallback onSaveTemplate;
+  final Future<void> Function() onDelete;
+
+  Future<void> _confirmDelete(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete workout?'),
+        content: const Text('This removes the workout and its exercises.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    await onDelete();
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Workout deleted.')),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -95,10 +340,46 @@ class _WorkoutCard extends StatelessWidget {
           child: Icon(Icons.fitness_center,
               color: colorScheme.onSecondaryContainer, size: 20),
         ),
-        title: Text(dateStr,
-            style: const TextStyle(fontWeight: FontWeight.w600)),
+        title:
+            Text(dateStr, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(
             '${workout.exercises.length} exercise${workout.exercises.length == 1 ? '' : 's'}'),
+        trailing: PopupMenuButton<String>(
+          tooltip: 'Workout actions',
+          onSelected: (value) {
+            switch (value) {
+              case 'edit':
+                onEdit();
+              case 'template':
+                onSaveTemplate();
+              case 'delete':
+                _confirmDelete(context);
+            }
+          },
+          itemBuilder: (_) => const [
+            PopupMenuItem(
+              value: 'edit',
+              child: ListTile(
+                leading: Icon(Icons.edit_outlined),
+                title: Text('Edit'),
+              ),
+            ),
+            PopupMenuItem(
+              value: 'template',
+              child: ListTile(
+                leading: Icon(Icons.bookmark_add_outlined),
+                title: Text('Save as routine'),
+              ),
+            ),
+            PopupMenuItem(
+              value: 'delete',
+              child: ListTile(
+                leading: Icon(Icons.delete_outline),
+                title: Text('Delete'),
+              ),
+            ),
+          ],
+        ),
         childrenPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         children: [
@@ -142,9 +423,15 @@ class _ExerciseRow extends StatelessWidget {
 // ─── Add workout bottom sheet ────────────────────────────────────────────────
 
 class _AddWorkoutSheet extends StatefulWidget {
-  const _AddWorkoutSheet({required this.onSave});
+  const _AddWorkoutSheet({
+    required this.onSave,
+    required this.profileId,
+    this.initialWorkout,
+  });
 
   final Future<void> Function(DrylandWorkout) onSave;
+  final String profileId;
+  final DrylandWorkout? initialWorkout;
 
   @override
   State<_AddWorkoutSheet> createState() => _AddWorkoutSheetState();
@@ -152,14 +439,28 @@ class _AddWorkoutSheet extends StatefulWidget {
 
 class _AddWorkoutSheetState extends State<_AddWorkoutSheet> {
   final _formKey = GlobalKey<FormState>();
-  final _notesController = TextEditingController();
-  DateTime _date = DateTime.now();
+  late final TextEditingController _notesController;
+  late DateTime _date;
   final _exercises = <_ExerciseEntry>[];
   bool _saving = false;
 
   @override
+  void initState() {
+    super.initState();
+    final workout = widget.initialWorkout;
+    _date = workout?.date ?? DateTime.now();
+    _notesController = TextEditingController(text: workout?.notes ?? '');
+    if (workout != null) {
+      _exercises.addAll(workout.exercises.map(_ExerciseEntry.fromExercise));
+    }
+  }
+
+  @override
   void dispose() {
     _notesController.dispose();
+    for (final exercise in _exercises) {
+      exercise.dispose();
+    }
     super.dispose();
   }
 
@@ -174,11 +475,12 @@ class _AddWorkoutSheetState extends State<_AddWorkoutSheet> {
 
     setState(() => _saving = true);
     try {
-      final workoutId = _uuid.v4();
+      final workoutId = widget.initialWorkout?.id ?? _uuid.v4();
       final exercises = _exercises
           .map((e) => Exercise(
-                id: _uuid.v4(),
+                id: e.id ?? _uuid.v4(),
                 workoutId: workoutId,
+                profileId: widget.profileId,
                 name: e.nameController.text.trim(),
                 sets: int.parse(e.setsController.text),
                 reps: int.parse(e.repsController.text),
@@ -188,6 +490,7 @@ class _AddWorkoutSheetState extends State<_AddWorkoutSheet> {
 
       final workout = DrylandWorkout(
         id: workoutId,
+        profileId: widget.profileId,
         date: _date,
         exercises: exercises,
         notes: _notesController.text.trim().isEmpty
@@ -230,7 +533,11 @@ class _AddWorkoutSheetState extends State<_AddWorkoutSheet> {
             slivers: [
               SliverAppBar(
                 pinned: true,
-                title: const Text('New Workout'),
+                title: Text(
+                  widget.initialWorkout == null
+                      ? 'New Workout'
+                      : 'Edit Workout',
+                ),
                 automaticallyImplyLeading: false,
                 actions: [
                   if (_saving)
@@ -239,8 +546,8 @@ class _AddWorkoutSheetState extends State<_AddWorkoutSheet> {
                       child: SizedBox(
                         width: 20,
                         height: 20,
-                        child: CircularProgressIndicator.adaptive(
-                            strokeWidth: 2),
+                        child:
+                            CircularProgressIndicator.adaptive(strokeWidth: 2),
                       ),
                     )
                   else
@@ -263,8 +570,8 @@ class _AddWorkoutSheetState extends State<_AddWorkoutSheet> {
                       ListTile(
                         contentPadding: EdgeInsets.zero,
                         leading: const Icon(Icons.calendar_today),
-                        title: Text(
-                            DateFormat('EEEE, d MMM yyyy').format(_date)),
+                        title:
+                            Text(DateFormat('EEEE, d MMM yyyy').format(_date)),
                         trailing: const Icon(Icons.edit_calendar),
                         onTap: _pickDate,
                         shape: RoundedRectangleBorder(
@@ -295,8 +602,8 @@ class _AddWorkoutSheetState extends State<_AddWorkoutSheet> {
                                 ?.copyWith(fontWeight: FontWeight.bold),
                           ),
                           FilledButton.tonalIcon(
-                            onPressed: () =>
-                                setState(() => _exercises.add(_ExerciseEntry())),
+                            onPressed: () => setState(
+                                () => _exercises.add(_ExerciseEntry())),
                             icon: const Icon(Icons.add),
                             label: const Text('Add'),
                           ),
@@ -315,8 +622,10 @@ class _AddWorkoutSheetState extends State<_AddWorkoutSheet> {
                     key: ValueKey(i),
                     index: i,
                     entry: _exercises[i],
-                    onRemove: () =>
-                        setState(() => _exercises.removeAt(i)),
+                    onRemove: () => setState(() {
+                      final removed = _exercises.removeAt(i);
+                      removed.dispose();
+                    }),
                   ),
                 ),
               ),
@@ -330,10 +639,35 @@ class _AddWorkoutSheetState extends State<_AddWorkoutSheet> {
 }
 
 class _ExerciseEntry {
-  final nameController = TextEditingController();
-  final setsController = TextEditingController(text: '3');
-  final repsController = TextEditingController(text: '10');
-  final weightController = TextEditingController();
+  _ExerciseEntry({
+    this.id,
+    String name = '',
+    String sets = '3',
+    String reps = '10',
+    String weight = '',
+  })  : nameController = TextEditingController(text: name),
+        setsController = TextEditingController(text: sets),
+        repsController = TextEditingController(text: reps),
+        weightController = TextEditingController(text: weight);
+
+  factory _ExerciseEntry.fromExercise(Exercise exercise) {
+    final weight = exercise.weight == null
+        ? ''
+        : exercise.weight!.toStringAsFixed(exercise.weight! % 1 == 0 ? 0 : 1);
+    return _ExerciseEntry(
+      id: exercise.id,
+      name: exercise.name,
+      sets: exercise.sets.toString(),
+      reps: exercise.reps.toString(),
+      weight: weight,
+    );
+  }
+
+  final String? id;
+  final TextEditingController nameController;
+  final TextEditingController setsController;
+  final TextEditingController repsController;
+  final TextEditingController weightController;
 
   void dispose() {
     nameController.dispose();
@@ -394,8 +728,10 @@ class _ExerciseFormCard extends StatelessWidget {
                       labelText: 'Sets',
                       isDense: true,
                     ),
-                    validator: (v) =>
-                        int.tryParse(v ?? '') == null ? 'Required' : null,
+                    validator: (v) {
+                      final value = int.tryParse(v ?? '');
+                      return value == null || value <= 0 ? 'Required' : null;
+                    },
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -407,8 +743,10 @@ class _ExerciseFormCard extends StatelessWidget {
                       labelText: 'Reps',
                       isDense: true,
                     ),
-                    validator: (v) =>
-                        int.tryParse(v ?? '') == null ? 'Required' : null,
+                    validator: (v) {
+                      final value = int.tryParse(v ?? '');
+                      return value == null || value <= 0 ? 'Required' : null;
+                    },
                   ),
                 ),
                 const SizedBox(width: 8),

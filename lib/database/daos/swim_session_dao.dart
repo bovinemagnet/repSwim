@@ -14,6 +14,7 @@ class SwimSessionDao {
       'swim_sessions',
       {
         'id': session.id,
+        'profile_id': session.profileId,
         'date': session.date.millisecondsSinceEpoch,
         'total_distance': session.totalDistance,
         'total_time_seconds': session.totalTime.inSeconds,
@@ -35,6 +36,7 @@ class SwimSessionDao {
       {
         'id': lap.id,
         'session_id': lap.sessionId,
+        'profile_id': lap.profileId,
         'distance': lap.distance,
         'time_seconds': lap.time.inSeconds,
         'lap_number': lap.lapNumber,
@@ -43,16 +45,22 @@ class SwimSessionDao {
     );
   }
 
-  Future<List<SwimSession>> getAllSessions() async {
+  Future<List<SwimSession>> getAllSessions(String profileId) async {
     final db = await _db.database;
-    final rows = await db.query('swim_sessions', orderBy: 'date DESC');
+    final rows = await db.query(
+      'swim_sessions',
+      where: 'profile_id = ?',
+      whereArgs: [profileId],
+      orderBy: 'date DESC',
+    );
 
     final sessions = <SwimSession>[];
     for (final row in rows) {
       final id = row['id'] as String;
-      final laps = await getLapsForSession(id);
+      final laps = await getLapsForSession(id, profileId);
       sessions.add(SwimSession(
         id: id,
+        profileId: row['profile_id'] as String,
         date: DateTime.fromMillisecondsSinceEpoch(row['date'] as int),
         totalDistance: row['total_distance'] as int,
         totalTime: Duration(seconds: row['total_time_seconds'] as int),
@@ -64,10 +72,15 @@ class SwimSessionDao {
     return sessions;
   }
 
-  Future<List<SwimSession>> getRecentSessions({int limit = 10}) async {
+  Future<List<SwimSession>> getRecentSessions(
+    String profileId, {
+    int limit = 10,
+  }) async {
     final db = await _db.database;
     final rows = await db.query(
       'swim_sessions',
+      where: 'profile_id = ?',
+      whereArgs: [profileId],
       orderBy: 'date DESC',
       limit: limit,
     );
@@ -75,9 +88,10 @@ class SwimSessionDao {
     final sessions = <SwimSession>[];
     for (final row in rows) {
       final id = row['id'] as String;
-      final laps = await getLapsForSession(id);
+      final laps = await getLapsForSession(id, profileId);
       sessions.add(SwimSession(
         id: id,
+        profileId: row['profile_id'] as String,
         date: DateTime.fromMillisecondsSinceEpoch(row['date'] as int),
         totalDistance: row['total_distance'] as int,
         totalTime: Duration(seconds: row['total_time_seconds'] as int),
@@ -89,18 +103,20 @@ class SwimSessionDao {
     return sessions;
   }
 
-  Future<List<Lap>> getLapsForSession(String sessionId) async {
+  Future<List<Lap>> getLapsForSession(
+      String sessionId, String profileId) async {
     final db = await _db.database;
     final rows = await db.query(
       'laps',
-      where: 'session_id = ?',
-      whereArgs: [sessionId],
+      where: 'session_id = ? AND profile_id = ?',
+      whereArgs: [sessionId, profileId],
       orderBy: 'lap_number ASC',
     );
     return rows
         .map((r) => Lap(
               id: r['id'] as String,
               sessionId: r['session_id'] as String,
+              profileId: r['profile_id'] as String,
               distance: r['distance'] as int,
               time: Duration(seconds: r['time_seconds'] as int),
               lapNumber: r['lap_number'] as int,
@@ -108,9 +124,13 @@ class SwimSessionDao {
         .toList();
   }
 
-  Future<void> deleteSession(String id) async {
+  Future<void> deleteSession(String id, String profileId) async {
     final db = await _db.database;
     // Laps are deleted via ON DELETE CASCADE
-    await db.delete('swim_sessions', where: 'id = ?', whereArgs: [id]);
+    await db.delete(
+      'swim_sessions',
+      where: 'id = ? AND profile_id = ?',
+      whereArgs: [id, profileId],
+    );
   }
 }

@@ -1,3 +1,5 @@
+import '../../../../core/constants/app_constants.dart';
+
 class PersonalBest {
   const PersonalBest({
     required this.id,
@@ -5,9 +7,11 @@ class PersonalBest {
     required this.distance,
     required this.bestTime,
     required this.achievedAt,
+    this.profileId = kDefaultProfileId,
   });
 
   final String id;
+  final String profileId;
   final String stroke;
 
   /// Distance in meters.
@@ -17,6 +21,7 @@ class PersonalBest {
 
   PersonalBest copyWith({
     String? id,
+    String? profileId,
     String? stroke,
     int? distance,
     Duration? bestTime,
@@ -24,6 +29,7 @@ class PersonalBest {
   }) {
     return PersonalBest(
       id: id ?? this.id,
+      profileId: profileId ?? this.profileId,
       stroke: stroke ?? this.stroke,
       distance: distance ?? this.distance,
       bestTime: bestTime ?? this.bestTime,

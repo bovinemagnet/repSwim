@@ -9,10 +9,13 @@ class PbDao {
 
   Future<void> insertOrUpdate(PersonalBest pb) async {
     final db = await _db.database;
+    final existing =
+        await getForStrokeAndDistance(pb.profileId, pb.stroke, pb.distance);
     await db.insert(
       'personal_bests',
       {
-        'id': pb.id,
+        'id': existing?.id ?? pb.id,
+        'profile_id': pb.profileId,
         'stroke': pb.stroke,
         'distance': pb.distance,
         'best_time_seconds': pb.bestTime.inSeconds,
@@ -22,12 +25,18 @@ class PbDao {
     );
   }
 
-  Future<List<PersonalBest>> getAll() async {
+  Future<List<PersonalBest>> getAll(String profileId) async {
     final db = await _db.database;
-    final rows = await db.query('personal_bests', orderBy: 'stroke ASC, distance ASC');
+    final rows = await db.query(
+      'personal_bests',
+      where: 'profile_id = ?',
+      whereArgs: [profileId],
+      orderBy: 'stroke ASC, distance ASC',
+    );
     return rows
         .map((r) => PersonalBest(
               id: r['id'] as String,
+              profileId: r['profile_id'] as String,
               stroke: r['stroke'] as String,
               distance: r['distance'] as int,
               bestTime: Duration(seconds: r['best_time_seconds'] as int),
@@ -38,28 +47,44 @@ class PbDao {
   }
 
   Future<PersonalBest?> getForStrokeAndDistance(
-      String stroke, int distance) async {
+    String profileId,
+    String stroke,
+    int distance,
+  ) async {
     final db = await _db.database;
     final rows = await db.query(
       'personal_bests',
-      where: 'stroke = ? AND distance = ?',
-      whereArgs: [stroke, distance],
+      where: 'profile_id = ? AND stroke = ? AND distance = ?',
+      whereArgs: [profileId, stroke, distance],
       limit: 1,
     );
     if (rows.isEmpty) return null;
     final r = rows.first;
     return PersonalBest(
       id: r['id'] as String,
+      profileId: r['profile_id'] as String,
       stroke: r['stroke'] as String,
       distance: r['distance'] as int,
       bestTime: Duration(seconds: r['best_time_seconds'] as int),
-      achievedAt:
-          DateTime.fromMillisecondsSinceEpoch(r['achieved_at'] as int),
+      achievedAt: DateTime.fromMillisecondsSinceEpoch(r['achieved_at'] as int),
     );
   }
 
-  Future<void> delete(String id) async {
+  Future<void> delete(String id, String profileId) async {
     final db = await _db.database;
-    await db.delete('personal_bests', where: 'id = ?', whereArgs: [id]);
+    await db.delete(
+      'personal_bests',
+      where: 'id = ? AND profile_id = ?',
+      whereArgs: [id, profileId],
+    );
+  }
+
+  Future<void> clear(String profileId) async {
+    final db = await _db.database;
+    await db.delete(
+      'personal_bests',
+      where: 'profile_id = ?',
+      whereArgs: [profileId],
+    );
   }
 }

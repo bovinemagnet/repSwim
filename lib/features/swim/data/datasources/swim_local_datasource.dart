@@ -7,12 +7,14 @@ class SwimLocalDatasource {
 
   final SwimSessionDao _dao;
 
-  Future<List<SwimSession>> fetchAll() => _dao.getAllSessions();
+  Future<List<SwimSession>> fetchAll(String profileId) =>
+      _dao.getAllSessions(profileId);
 
-  Future<List<SwimSession>> fetchRecent({int limit = 10}) =>
-      _dao.getRecentSessions(limit: limit);
+  Future<List<SwimSession>> fetchRecent(String profileId, {int limit = 10}) =>
+      _dao.getRecentSessions(profileId, limit: limit);
 
   Future<void> save(SwimSession session) => _dao.insertSession(session);
 
-  Future<void> delete(String id) => _dao.deleteSession(id);
+  Future<void> delete(String id, String profileId) =>
+      _dao.deleteSession(id, profileId);
 }

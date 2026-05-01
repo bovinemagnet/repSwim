@@ -1,3 +1,4 @@
+import '../../../../core/constants/app_constants.dart';
 import 'lap.dart';
 
 class SwimSession {
@@ -8,10 +9,12 @@ class SwimSession {
     required this.totalTime,
     required this.stroke,
     required this.laps,
+    this.profileId = kDefaultProfileId,
     this.notes,
   });
 
   final String id;
+  final String profileId;
   final DateTime date;
 
   /// Total distance in meters.
@@ -23,6 +26,7 @@ class SwimSession {
 
   SwimSession copyWith({
     String? id,
+    String? profileId,
     DateTime? date,
     int? totalDistance,
     Duration? totalTime,
@@ -32,6 +36,7 @@ class SwimSession {
   }) {
     return SwimSession(
       id: id ?? this.id,
+      profileId: profileId ?? this.profileId,
       date: date ?? this.date,
       totalDistance: totalDistance ?? this.totalDistance,
       totalTime: totalTime ?? this.totalTime,

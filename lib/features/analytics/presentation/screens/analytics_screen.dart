@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../providers/analytics_providers.dart';
+import '../../../pb/domain/entities/personal_best.dart';
 import '../../../../core/utils/duration_utils.dart';
 
 class AnalyticsScreen extends ConsumerWidget {
@@ -20,48 +21,45 @@ class AnalyticsScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Stats row ──────────────────────────────────────────────────
-            Row(
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 1.65,
               children: [
-                Expanded(
-                  child: _StatCard(
-                    icon: Icons.pool,
-                    label: 'Sessions',
-                    value: '${analytics.totalSessions}',
-                  ),
+                _StatCard(
+                  icon: Icons.pool,
+                  label: 'Sessions',
+                  value: '${analytics.totalSessions}',
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _StatCard(
-                    icon: Icons.straighten,
-                    label: 'Total Distance',
-                    value: _formatDistance(analytics.totalDistanceMeters),
-                  ),
+                _StatCard(
+                  icon: Icons.straighten,
+                  label: 'Total Distance',
+                  value: _formatDistance(analytics.totalDistanceMeters),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _StatCard(
-                    icon: Icons.speed,
-                    label: 'Avg Pace',
-                    value: analytics.averagePacePerHundred == Duration.zero
-                        ? '--'
-                        : DurationUtils.formatDuration(
-                            analytics.averagePacePerHundred),
-                    subtitle: '/100m',
-                  ),
+                _StatCard(
+                  icon: Icons.speed,
+                  label: 'Avg Pace',
+                  value: analytics.averagePacePerHundred == Duration.zero
+                      ? '--'
+                      : DurationUtils.formatDuration(
+                          analytics.averagePacePerHundred,
+                        ),
+                  subtitle: '/100m',
+                ),
+                _StatCard(
+                  icon: Icons.event_available,
+                  label: 'Consistency',
+                  value: '${analytics.consistencyScore}%',
                 ),
               ],
             ),
             const SizedBox(height: 24),
 
             // ── Weekly distance chart ────────────────────────────────────
-            Text(
-              'Last 7 Days',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold),
-            ),
+            const _SectionTitle('Last 7 Days'),
             const SizedBox(height: 12),
             Card(
               child: Padding(
@@ -81,6 +79,27 @@ class AnalyticsScreen extends ConsumerWidget {
                 ),
               ),
             ),
+            const SizedBox(height: 24),
+            const _SectionTitle('Pace Trend'),
+            const SizedBox(height: 12),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: SizedBox(
+                  height: 200,
+                  child: analytics.paceTrend.length < 2
+                      ? Center(
+                          child: Text(
+                            'Save more sessions to see pace trends',
+                            style: TextStyle(color: colorScheme.outline),
+                          ),
+                        )
+                      : _PaceTrendChart(points: analytics.paceTrend),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            _PbHighlightsSection(pbs: analytics.pbHighlights),
           ],
         ),
       ),
@@ -92,6 +111,23 @@ class AnalyticsScreen extends ConsumerWidget {
       return '${(meters / 1000).toStringAsFixed(1)}km';
     }
     return '${meters}m';
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: Theme.of(context)
+          .textTheme
+          .titleMedium
+          ?.copyWith(fontWeight: FontWeight.bold),
+    );
   }
 }
 
@@ -131,8 +167,7 @@ class _StatCard extends StatelessWidget {
                       ),
                 ),
                 if (subtitle != null)
-                  Text(subtitle!,
-                      style: Theme.of(context).textTheme.bodySmall),
+                  Text(subtitle!, style: Theme.of(context).textTheme.bodySmall),
               ],
             ),
             Text(label,
@@ -147,6 +182,172 @@ class _StatCard extends StatelessWidget {
   }
 }
 
+class _PaceTrendChart extends StatelessWidget {
+  const _PaceTrendChart({required this.points});
+
+  final List<PaceTrendPoint> points;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final spots = List.generate(
+      points.length,
+      (index) => FlSpot(
+        index.toDouble(),
+        points[index].pacePerHundred.inSeconds.toDouble(),
+      ),
+    );
+    final values = spots.map((spot) => spot.y).toList();
+    final minValue = values.reduce((a, b) => a < b ? a : b);
+    final maxValue = values.reduce((a, b) => a > b ? a : b);
+    final minY = (minValue - 10).clamp(0, double.infinity).toDouble();
+    final maxY = maxValue == minValue ? maxValue + 10 : maxValue + 10;
+
+    return LineChart(
+      LineChartData(
+        minX: 0,
+        maxX: (points.length - 1).toDouble(),
+        minY: minY,
+        maxY: maxY,
+        lineTouchData: LineTouchData(
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipColor: (_) => colorScheme.surfaceContainerHighest,
+            getTooltipItems: (spots) => spots
+                .map(
+                  (spot) => LineTooltipItem(
+                    DurationUtils.formatDuration(
+                      Duration(seconds: spot.y.round()),
+                    ),
+                    TextStyle(
+                      color: colorScheme.onSurface,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+        ),
+        titlesData: FlTitlesData(
+          show: true,
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 44,
+              getTitlesWidget: (value, meta) {
+                if (value == minY || value == maxY) {
+                  return const SizedBox.shrink();
+                }
+                return Text(
+                  DurationUtils.formatDuration(
+                    Duration(seconds: value.round()),
+                  ),
+                  style: Theme.of(context).textTheme.labelSmall,
+                );
+              },
+            ),
+          ),
+          rightTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              getTitlesWidget: (value, meta) {
+                final index = value.round();
+                if (index < 0 || index >= points.length) {
+                  return const SizedBox.shrink();
+                }
+                return Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    DateFormat('d MMM').format(points[index].date),
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          getDrawingHorizontalLine: (_) => FlLine(
+            color: colorScheme.outlineVariant,
+            strokeWidth: 0.5,
+          ),
+        ),
+        borderData: FlBorderData(show: false),
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            isCurved: true,
+            color: colorScheme.primary,
+            barWidth: 3,
+            dotData: const FlDotData(show: true),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PbHighlightsSection extends StatelessWidget {
+  const _PbHighlightsSection({required this.pbs});
+
+  final List<PersonalBest> pbs;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionTitle('PB Highlights'),
+        const SizedBox(height: 12),
+        if (pbs.isEmpty)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'Save swim sessions with lap times to build PB highlights',
+                style: TextStyle(color: colorScheme.outline),
+              ),
+            ),
+          )
+        else
+          ...pbs.map((pb) => _PbHighlightTile(pb: pb)),
+      ],
+    );
+  }
+}
+
+class _PbHighlightTile extends StatelessWidget {
+  const _PbHighlightTile({required this.pb});
+
+  final PersonalBest pb;
+
+  @override
+  Widget build(BuildContext context) {
+    final date = DateFormat('d MMM yyyy').format(pb.achievedAt);
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        leading: const Icon(Icons.emoji_events, color: Colors.amber),
+        title: Text('${pb.stroke} ${pb.distance}m'),
+        subtitle: Text(date),
+        trailing: Text(
+          DurationUtils.formatDuration(pb.bestTime),
+          style: const TextStyle(
+            fontFamily: 'monospace',
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _WeeklyBarChart extends StatelessWidget {
   const _WeeklyBarChart({required this.distances});
 
@@ -155,8 +356,10 @@ class _WeeklyBarChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final maxVal =
-        distances.reduce((a, b) => a > b ? a : b).toDouble().clamp(1.0, double.infinity);
+    final maxVal = distances
+        .reduce((a, b) => a > b ? a : b)
+        .toDouble()
+        .clamp(1.0, double.infinity);
 
     // Day labels: oldest is index 0, today is index 6
     final today = DateTime.now();

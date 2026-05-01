@@ -7,6 +7,7 @@ import '../../domain/entities/lap.dart';
 import '../../presentation/providers/swim_providers.dart';
 import '../../../pb/presentation/providers/pb_providers.dart';
 import '../../../pb/domain/services/pb_service.dart';
+import '../../../profiles/presentation/providers/profile_providers.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/utils/duration_utils.dart';
 
@@ -32,11 +33,10 @@ class _SwimSessionScreenState extends ConsumerState<SwimSessionScreen> {
     super.dispose();
   }
 
-  int get _totalDistance =>
-      _laps.fold(0, (sum, l) => sum + (l.distance ?? 0));
+  int get _totalDistance => _laps.fold(0, (sum, l) => sum + (l.distance ?? 0));
 
-  Duration get _totalTime =>
-      _laps.fold(Duration.zero, (sum, l) => sum + (l.duration ?? Duration.zero));
+  Duration get _totalTime => _laps.fold(
+      Duration.zero, (sum, l) => sum + (l.duration ?? Duration.zero));
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
@@ -50,6 +50,7 @@ class _SwimSessionScreenState extends ConsumerState<SwimSessionScreen> {
     setState(() => _saving = true);
     try {
       final sessionId = _uuid.v4();
+      final profileId = ref.read(currentProfileIdProvider);
       final laps = _laps
           .asMap()
           .entries
@@ -57,6 +58,7 @@ class _SwimSessionScreenState extends ConsumerState<SwimSessionScreen> {
             (e) => Lap(
               id: _uuid.v4(),
               sessionId: sessionId,
+              profileId: profileId,
               distance: e.value.distance!,
               time: e.value.duration!,
               lapNumber: e.key + 1,
@@ -66,6 +68,7 @@ class _SwimSessionScreenState extends ConsumerState<SwimSessionScreen> {
 
       final session = SwimSession(
         id: sessionId,
+        profileId: profileId,
         date: DateTime.now(),
         totalDistance: _totalDistance,
         totalTime: _totalTime,
@@ -122,7 +125,9 @@ class _SwimSessionScreenState extends ConsumerState<SwimSessionScreen> {
   }
 
   void _addLap() {
-    setState(() => _laps.add(_LapEntry()));
+    final poolLength =
+        ref.read(currentProfileProvider).preferredPoolLengthMeters;
+    setState(() => _laps.add(_LapEntry(distance: poolLength)));
   }
 
   void _removeLap(int index) {
@@ -164,14 +169,14 @@ class _SwimSessionScreenState extends ConsumerState<SwimSessionScreen> {
                   children: [
                     // Stroke selector
                     DropdownButtonFormField<String>(
-                      value: _stroke,
+                      initialValue: _stroke,
                       decoration: const InputDecoration(
                         labelText: 'Stroke',
                         prefixIcon: Icon(Icons.waves),
                       ),
                       items: kStrokes
-                          .map((s) =>
-                              DropdownMenuItem(value: s, child: Text(s)))
+                          .map(
+                              (s) => DropdownMenuItem(value: s, child: Text(s)))
                           .toList(),
                       onChanged: (v) => setState(() => _stroke = v!),
                     ),
@@ -240,6 +245,8 @@ class _SwimSessionScreenState extends ConsumerState<SwimSessionScreen> {
 }
 
 class _LapEntry {
+  _LapEntry({this.distance});
+
   int? distance;
   Duration? duration;
 }
@@ -309,7 +316,8 @@ class _TotalItem extends StatelessWidget {
                 )),
         Text(label,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSecondaryContainer.withOpacity(0.7),
+                  color:
+                      colorScheme.onSecondaryContainer.withValues(alpha: 0.7),
                 )),
       ],
     );
@@ -342,8 +350,8 @@ class _LapCardState extends State<_LapCard> {
   @override
   void initState() {
     super.initState();
-    _distController = TextEditingController(
-        text: widget.entry.distance?.toString() ?? '');
+    _distController =
+        TextEditingController(text: widget.entry.distance?.toString() ?? '');
     _minController = TextEditingController(
         text: widget.entry.duration != null
             ? widget.entry.duration!.inMinutes.remainder(60).toString()
@@ -408,10 +416,11 @@ class _LapCardState extends State<_LapCard> {
                       labelText: 'Distance (m)',
                       isDense: true,
                     ),
-                    validator: (v) =>
-                        (v == null || int.tryParse(v) == null || int.parse(v) <= 0)
-                            ? 'Enter distance'
-                            : null,
+                    validator: (v) => (v == null ||
+                            int.tryParse(v) == null ||
+                            int.parse(v) <= 0)
+                        ? 'Enter distance'
+                        : null,
                     onChanged: (_) => _updateEntry(),
                   ),
                 ),
