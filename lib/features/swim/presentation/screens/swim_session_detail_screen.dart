@@ -73,6 +73,11 @@ class SwimSessionDetailScreen extends ConsumerWidget {
             title: const Text('Session Details'),
             actions: [
               IconButton(
+                icon: const Icon(Icons.edit_outlined),
+                tooltip: 'Edit session',
+                onPressed: () => context.push('/sessions/${session.id}/edit'),
+              ),
+              IconButton(
                 icon: const Icon(Icons.delete_outline),
                 tooltip: 'Delete session',
                 onPressed: () => _deleteSession(context, ref, session),

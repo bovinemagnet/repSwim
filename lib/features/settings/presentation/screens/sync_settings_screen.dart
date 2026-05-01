@@ -14,6 +14,7 @@ class SyncSettingsScreen extends ConsumerWidget {
     final profileId = ref.watch(currentProfileIdProvider);
     final summaryAsync = ref.watch(syncQueueSummaryProvider);
     final service = ref.watch(syncServiceProvider);
+    final queueFailure = ref.watch(syncQueueFailureProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Sync Settings')),
@@ -48,10 +49,28 @@ class SyncSettingsScreen extends ConsumerWidget {
             ],
             selected: {mode},
             onSelectionChanged: (selection) {
-              ref.read(syncModeProvider.notifier).state = selection.single;
+              setSyncMode(ref, selection.single);
             },
           ),
           const SizedBox(height: 16),
+          if (queueFailure != null) ...[
+            Card(
+              color: Theme.of(context).colorScheme.errorContainer,
+              child: ListTile(
+                leading: const Icon(Icons.warning_amber_outlined),
+                title: const Text('Some changes could not be queued'),
+                subtitle: Text(queueFailure),
+                trailing: IconButton(
+                  tooltip: 'Dismiss warning',
+                  icon: const Icon(Icons.close),
+                  onPressed: () {
+                    ref.read(syncQueueFailureProvider.notifier).state = null;
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
           Card(
             child: ListTile(
               leading: Icon(

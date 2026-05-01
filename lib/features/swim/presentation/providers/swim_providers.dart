@@ -44,7 +44,9 @@ class SwimSessionsNotifier
     this._repository,
     this._profileId, {
     SyncQueueDao? syncQueueDao,
+    void Function(Object error)? onQueueFailure,
   })  : _syncQueueDao = syncQueueDao,
+        _onQueueFailure = onQueueFailure,
         super(const AsyncValue.loading()) {
     load();
   }
@@ -52,6 +54,7 @@ class SwimSessionsNotifier
   final SwimRepository _repository;
   final String _profileId;
   final SyncQueueDao? _syncQueueDao;
+  final void Function(Object error)? _onQueueFailure;
 
   Future<void> load() async {
     state = const AsyncValue.loading();
@@ -70,6 +73,18 @@ class SwimSessionsNotifier
       entityId: session.id,
       profileId: session.profileId,
       operation: SyncOperation.create,
+      payload: swimSessionPayload(session),
+    );
+    await load();
+  }
+
+  Future<void> updateSession(SwimSession session) async {
+    await _repository.saveSession(session);
+    await _queueChange(
+      entityType: 'swim_session',
+      entityId: session.id,
+      profileId: session.profileId,
+      operation: SyncOperation.update,
       payload: swimSessionPayload(session),
     );
     await load();
@@ -102,8 +117,9 @@ class SwimSessionsNotifier
         operation: operation,
         payload: payload,
       );
-    } catch (_) {
+    } catch (error) {
       // Sync queue failures must not block local-first writes.
+      _onQueueFailure?.call(error);
     }
   }
 }
@@ -114,5 +130,8 @@ final swimSessionsProvider =
     ref.read(swimRepositoryProvider),
     ref.watch(currentProfileIdProvider),
     syncQueueDao: ref.read(syncQueueDaoProvider),
+    onQueueFailure: (error) {
+      ref.read(syncQueueFailureProvider.notifier).state = error.toString();
+    },
   ),
 );

@@ -14,7 +14,9 @@ class DrylandWorkoutsNotifier
     this._dao,
     this._profileId, {
     SyncQueueDao? syncQueueDao,
+    void Function(Object error)? onQueueFailure,
   })  : _syncQueueDao = syncQueueDao,
+        _onQueueFailure = onQueueFailure,
         super(const AsyncValue.loading()) {
     load();
   }
@@ -22,6 +24,7 @@ class DrylandWorkoutsNotifier
   final DrylandDao _dao;
   final String _profileId;
   final SyncQueueDao? _syncQueueDao;
+  final void Function(Object error)? _onQueueFailure;
 
   Future<void> load() async {
     state = const AsyncValue.loading();
@@ -85,8 +88,9 @@ class DrylandWorkoutsNotifier
         operation: operation,
         payload: payload,
       );
-    } catch (_) {
+    } catch (error) {
       // Sync queue failures must not block local-first writes.
+      _onQueueFailure?.call(error);
     }
   }
 }
@@ -97,5 +101,8 @@ final drylandWorkoutsProvider = StateNotifierProvider<DrylandWorkoutsNotifier,
     ref.read(drylandDaoProvider),
     ref.watch(currentProfileIdProvider),
     syncQueueDao: ref.read(syncQueueDaoProvider),
+    onQueueFailure: (error) {
+      ref.read(syncQueueFailureProvider.notifier).state = error.toString();
+    },
   ),
 );

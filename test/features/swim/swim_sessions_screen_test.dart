@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rep_swim/features/swim/domain/entities/swim_session.dart';
@@ -163,6 +164,46 @@ void main() {
       expect(find.byType(DataTable), findsOneWidget);
       expect(find.text('Notes'), findsOneWidget);
       expect(find.text('Threshold set'), findsOneWidget);
+    });
+
+    testWidgets('copies filtered sessions as CSV', (tester) async {
+      String? copiedText;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'Clipboard.setData') {
+          copiedText =
+              (call.arguments as Map<Object?, Object?>)['text'] as String?;
+        }
+        return null;
+      });
+      addTearDown(() {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(SystemChannels.platform, null);
+      });
+
+      await _pumpScreen(tester, [
+        _session(
+          id: 'session-1',
+          stroke: 'Freestyle',
+          distance: 100,
+          notes: 'Threshold set',
+        ),
+        _session(
+          id: 'session-2',
+          stroke: 'Backstroke',
+          distance: 200,
+          notes: 'Recovery',
+        ),
+      ]);
+
+      await tester.enterText(find.byType(TextField), 'threshold');
+      await tester.pump();
+      await tester.tap(find.byTooltip('Export CSV'));
+      await tester.pump();
+
+      expect(copiedText, contains('Freestyle'));
+      expect(copiedText, isNot(contains('Backstroke')));
+      expect(find.text('Copied 1 sessions as CSV.'), findsOneWidget);
     });
   });
 }

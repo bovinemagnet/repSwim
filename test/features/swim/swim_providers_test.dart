@@ -85,6 +85,7 @@ void main() {
   test('deleteSession queues a sync delete without blocking reload', () async {
     final repository = _MockSwimRepository();
     final queue = _MockSyncQueueDao();
+    Object? reportedError;
 
     when(() => repository.getAllSessions(any())).thenAnswer((_) async => []);
     when(() => repository.deleteSession(any(), any())).thenAnswer((_) async {});
@@ -102,6 +103,7 @@ void main() {
       repository,
       'profile-1',
       syncQueueDao: queue,
+      onQueueFailure: (error) => reportedError = error,
     );
     await Future<void>.delayed(Duration.zero);
 
@@ -110,5 +112,47 @@ void main() {
     verify(() => repository.deleteSession('session-1', 'profile-1')).called(1);
     verify(() => repository.getAllSessions('profile-1'))
         .called(greaterThanOrEqualTo(2));
+    expect(reportedError, isA<Exception>());
+  });
+
+  test('updateSession saves locally and queues a sync update', () async {
+    final repository = _MockSwimRepository();
+    final queue = _MockSyncQueueDao();
+    final session = _session().copyWith(
+      totalDistance: 50,
+      totalTime: const Duration(seconds: 40),
+    );
+
+    when(() => repository.getAllSessions(any())).thenAnswer((_) async => []);
+    when(() => repository.saveSession(any())).thenAnswer((_) async {});
+    when(
+      () => queue.enqueue(
+        profileId: any(named: 'profileId'),
+        entityType: any(named: 'entityType'),
+        entityId: any(named: 'entityId'),
+        operation: any(named: 'operation'),
+        payload: any(named: 'payload'),
+      ),
+    ).thenAnswer((_) async {});
+
+    final notifier = SwimSessionsNotifier(
+      repository,
+      'profile-1',
+      syncQueueDao: queue,
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    await notifier.updateSession(session);
+
+    verify(() => repository.saveSession(session)).called(1);
+    verify(
+      () => queue.enqueue(
+        profileId: 'profile-1',
+        entityType: 'swim_session',
+        entityId: 'session-1',
+        operation: SyncOperation.update,
+        payload: any(named: 'payload'),
+      ),
+    ).called(1);
   });
 }

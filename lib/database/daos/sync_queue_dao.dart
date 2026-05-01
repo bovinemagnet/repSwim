@@ -46,23 +46,30 @@ class SyncQueueDao {
   }) async {
     final db = await _db.database;
     final now = _clock().millisecondsSinceEpoch;
-    await db.insert(
-      'sync_queue',
-      {
-        'id': _idFactory(),
-        'profile_id': profileId,
-        'entity_type': entityType,
-        'entity_id': entityId,
-        'operation': operation.name,
-        'payload_json': jsonEncode(payload),
-        'status': SyncQueueStatus.pending.name,
-        'retry_count': 0,
-        'last_error': null,
-        'created_at': now,
-        'updated_at': now,
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.transaction((txn) async {
+      final sequenceRows = await txn.rawQuery(
+        'SELECT COALESCE(MAX(sequence), 0) + 1 AS next_sequence FROM sync_queue',
+      );
+      final sequence = sequenceRows.single['next_sequence'] as int;
+      await txn.insert(
+        'sync_queue',
+        {
+          'id': _idFactory(),
+          'profile_id': profileId,
+          'entity_type': entityType,
+          'entity_id': entityId,
+          'operation': operation.name,
+          'payload_json': jsonEncode(payload),
+          'status': SyncQueueStatus.pending.name,
+          'retry_count': 0,
+          'last_error': null,
+          'sequence': sequence,
+          'created_at': now,
+          'updated_at': now,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    });
   }
 
   Future<List<SyncQueueItem>> getPending({
@@ -78,7 +85,7 @@ class SyncQueueDao {
         SyncQueueStatus.pending.name,
         SyncQueueStatus.failed.name,
       ],
-      orderBy: 'created_at ASC',
+      orderBy: 'sequence ASC',
       limit: limit,
     );
     return rows.map(_fromRow).toList();

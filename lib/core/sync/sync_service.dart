@@ -21,9 +21,22 @@ class SyncService {
     final pending = await queueDao?.getPending(profileId: profileId) ?? [];
     if (pending.isNotEmpty) {
       try {
-        await client!.pushChanges(pending);
+        final results = await client!.pushChanges(pending);
+        final resultsById = {
+          for (final result in results) result.itemId: result
+        };
         for (final item in pending) {
-          await queueDao?.markComplete(item.id);
+          final result = resultsById[item.id];
+          if (result == null) {
+            await queueDao?.markFailed(item.id, 'Missing sync result');
+          } else if (result.accepted) {
+            await queueDao?.markComplete(item.id);
+          } else {
+            await queueDao?.markFailed(
+              item.id,
+              result.error ?? 'Sync item rejected',
+            );
+          }
         }
       } catch (error) {
         for (final item in pending) {

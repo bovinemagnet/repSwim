@@ -22,14 +22,19 @@ final appSettingsDaoProvider = Provider<AppSettingsDao>((ref) {
 });
 
 class ProfilesNotifier extends StateNotifier<AsyncValue<List<SwimmerProfile>>> {
-  ProfilesNotifier(this._dao, {SyncQueueDao? syncQueueDao})
-      : _syncQueueDao = syncQueueDao,
+  ProfilesNotifier(
+    this._dao, {
+    SyncQueueDao? syncQueueDao,
+    void Function(Object error)? onQueueFailure,
+  })  : _syncQueueDao = syncQueueDao,
+        _onQueueFailure = onQueueFailure,
         super(const AsyncValue.loading()) {
     load();
   }
 
   final ProfileDao _dao;
   final SyncQueueDao? _syncQueueDao;
+  final void Function(Object error)? _onQueueFailure;
 
   Future<void> load() async {
     state = const AsyncValue.loading();
@@ -122,8 +127,9 @@ class ProfilesNotifier extends StateNotifier<AsyncValue<List<SwimmerProfile>>> {
         operation: operation,
         payload: payload,
       );
-    } catch (_) {
+    } catch (error) {
       // Sync queue failures must not block local-first writes.
+      _onQueueFailure?.call(error);
     }
   }
 }
@@ -133,6 +139,9 @@ final profilesProvider =
   (ref) => ProfilesNotifier(
     ref.read(profileDaoProvider),
     syncQueueDao: ref.read(syncQueueDaoProvider),
+    onQueueFailure: (error) {
+      ref.read(syncQueueFailureProvider.notifier).state = error.toString();
+    },
   ),
 );
 
@@ -142,13 +151,26 @@ final profileSelectionBootstrapProvider = FutureProvider<void>((ref) async {
   final savedProfileId = await ref
       .read(appSettingsDaoProvider)
       .getString(kSelectedProfileIdSetting);
-  if (savedProfileId == null || savedProfileId.isEmpty) return;
-  ref.read(selectedProfileIdProvider.notifier).state = savedProfileId;
+  final profiles = await ref.read(profileDaoProvider).getAll();
+  final selected = profiles.any((profile) => profile.id == savedProfileId)
+      ? savedProfileId
+      : profiles.isNotEmpty
+          ? profiles.first.id
+          : kDefaultProfileId;
+  ref.read(selectedProfileIdProvider.notifier).state = selected;
+});
+
+final appBootstrapProvider = FutureProvider<void>((ref) async {
+  await ref.read(profileSelectionBootstrapProvider.future);
+  await ref.read(syncModeBootstrapProvider.future);
 });
 
 final currentProfileIdProvider = Provider<String>((ref) {
   final selected = ref.watch(selectedProfileIdProvider);
   final profiles = ref.watch(profilesProvider).valueOrNull;
+  if (selected != null && profiles == null) {
+    return selected;
+  }
   if (selected != null && profiles?.any((p) => p.id == selected) == true) {
     return selected;
   }

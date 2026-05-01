@@ -10,23 +10,42 @@ class SwimSessionDao {
 
   Future<void> insertSession(SwimSession session) async {
     final db = await _db.database;
-    await db.insert(
-      'swim_sessions',
-      {
-        'id': session.id,
-        'profile_id': session.profileId,
-        'date': session.date.millisecondsSinceEpoch,
-        'total_distance': session.totalDistance,
-        'total_time_seconds': session.totalTime.inSeconds,
-        'stroke': session.stroke,
-        'notes': session.notes,
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.transaction((txn) async {
+      await txn.insert(
+        'swim_sessions',
+        {
+          'id': session.id,
+          'profile_id': session.profileId,
+          'date': session.date.millisecondsSinceEpoch,
+          'total_distance': session.totalDistance,
+          'total_time_seconds': session.totalTime.inSeconds,
+          'stroke': session.stroke,
+          'notes': session.notes,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
 
-    for (final lap in session.laps) {
-      await insertLap(lap);
-    }
+      await txn.delete(
+        'laps',
+        where: 'session_id = ? AND profile_id = ?',
+        whereArgs: [session.id, session.profileId],
+      );
+
+      for (final lap in session.laps) {
+        await txn.insert(
+          'laps',
+          {
+            'id': lap.id,
+            'session_id': lap.sessionId,
+            'profile_id': lap.profileId,
+            'distance': lap.distance,
+            'time_seconds': lap.time.inSeconds,
+            'lap_number': lap.lapNumber,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+    });
   }
 
   Future<void> insertLap(Lap lap) async {

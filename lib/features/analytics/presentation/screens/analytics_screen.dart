@@ -16,92 +16,94 @@ class AnalyticsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Analytics')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 1.65,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth >= 1000;
+          final stats = [
+            _StatCard(
+              icon: Icons.pool,
+              label: 'Sessions',
+              value: '${analytics.totalSessions}',
+            ),
+            _StatCard(
+              icon: Icons.straighten,
+              label: 'Total Distance',
+              value: _formatDistance(analytics.totalDistanceMeters),
+            ),
+            _StatCard(
+              icon: Icons.speed,
+              label: 'Avg Pace',
+              value: analytics.averagePacePerHundred == Duration.zero
+                  ? '--'
+                  : DurationUtils.formatDuration(
+                      analytics.averagePacePerHundred,
+                    ),
+              subtitle: '/100m',
+            ),
+            _StatCard(
+              icon: Icons.event_available,
+              label: 'Consistency',
+              value: '${analytics.consistencyScore}%',
+            ),
+          ];
+          final weeklyChart = _ChartPanel(
+            title: 'Last 7 Days',
+            child: analytics.weeklyDistances.every((d) => d == 0)
+                ? Center(
+                    child: Text(
+                      'No swim data in the last 7 days',
+                      style: TextStyle(color: colorScheme.outline),
+                    ),
+                  )
+                : _WeeklyBarChart(distances: analytics.weeklyDistances),
+          );
+          final paceChart = _ChartPanel(
+            title: 'Pace Trend',
+            child: analytics.paceTrend.length < 2
+                ? Center(
+                    child: Text(
+                      'Save more sessions to see pace trends',
+                      style: TextStyle(color: colorScheme.outline),
+                    ),
+                  )
+                : _PaceTrendChart(points: analytics.paceTrend),
+          );
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _StatCard(
-                  icon: Icons.pool,
-                  label: 'Sessions',
-                  value: '${analytics.totalSessions}',
+                GridView.count(
+                  crossAxisCount: isWide ? 4 : 2,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  childAspectRatio: isWide ? 2.2 : 1.25,
+                  children: stats,
                 ),
-                _StatCard(
-                  icon: Icons.straighten,
-                  label: 'Total Distance',
-                  value: _formatDistance(analytics.totalDistanceMeters),
-                ),
-                _StatCard(
-                  icon: Icons.speed,
-                  label: 'Avg Pace',
-                  value: analytics.averagePacePerHundred == Duration.zero
-                      ? '--'
-                      : DurationUtils.formatDuration(
-                          analytics.averagePacePerHundred,
-                        ),
-                  subtitle: '/100m',
-                ),
-                _StatCard(
-                  icon: Icons.event_available,
-                  label: 'Consistency',
-                  value: '${analytics.consistencyScore}%',
-                ),
+                const SizedBox(height: 24),
+                if (isWide)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: weeklyChart),
+                      const SizedBox(width: 16),
+                      Expanded(child: paceChart),
+                    ],
+                  )
+                else ...[
+                  weeklyChart,
+                  const SizedBox(height: 24),
+                  paceChart,
+                ],
+                const SizedBox(height: 24),
+                _PbHighlightsSection(pbs: analytics.pbHighlights),
               ],
             ),
-            const SizedBox(height: 24),
-
-            // ── Weekly distance chart ────────────────────────────────────
-            const _SectionTitle('Last 7 Days'),
-            const SizedBox(height: 12),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: SizedBox(
-                  height: 200,
-                  child: analytics.weeklyDistances.every((d) => d == 0)
-                      ? Center(
-                          child: Text(
-                            'No swim data in the last 7 days',
-                            style: TextStyle(color: colorScheme.outline),
-                          ),
-                        )
-                      : _WeeklyBarChart(
-                          distances: analytics.weeklyDistances,
-                        ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            const _SectionTitle('Pace Trend'),
-            const SizedBox(height: 12),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: SizedBox(
-                  height: 200,
-                  child: analytics.paceTrend.length < 2
-                      ? Center(
-                          child: Text(
-                            'Save more sessions to see pace trends',
-                            style: TextStyle(color: colorScheme.outline),
-                          ),
-                        )
-                      : _PaceTrendChart(points: analytics.paceTrend),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            _PbHighlightsSection(pbs: analytics.pbHighlights),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -111,6 +113,33 @@ class AnalyticsScreen extends ConsumerWidget {
       return '${(meters / 1000).toStringAsFixed(1)}km';
     }
     return '${meters}m';
+  }
+}
+
+class _ChartPanel extends StatelessWidget {
+  const _ChartPanel({
+    required this.title,
+    required this.child,
+  });
+
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionTitle(title),
+        const SizedBox(height: 12),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: SizedBox(height: 220, child: child),
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -156,15 +185,20 @@ class _StatCard extends StatelessWidget {
             Icon(icon, color: colorScheme.primary, size: 20),
             const SizedBox(height: 8),
             Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  value,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: colorScheme.onSurface,
-                      ),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      value,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.onSurface,
+                          ),
+                    ),
+                  ),
                 ),
                 if (subtitle != null)
                   Text(subtitle!, style: Theme.of(context).textTheme.bodySmall),

@@ -5,11 +5,19 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import '../core/constants/app_constants.dart';
 
 class AppDatabase {
-  AppDatabase._();
+  AppDatabase._({String? path, DatabaseFactory? factory})
+      : _path = path,
+        _factory = factory;
 
   static final AppDatabase instance = AppDatabase._();
 
-  static Database? _db;
+  AppDatabase.test({String path = inMemoryDatabasePath})
+      : _path = path,
+        _factory = databaseFactoryFfi;
+
+  final String? _path;
+  final DatabaseFactory? _factory;
+  Database? _db;
 
   Future<Database> get database async {
     _db ??= await _open();
@@ -17,6 +25,22 @@ class AppDatabase {
   }
 
   Future<Database> _open() async {
+    final factory = _factory;
+    if (factory != null) {
+      sqfliteFfiInit();
+      return factory.openDatabase(
+        _path!,
+        options: OpenDatabaseOptions(
+          version: kDbVersion,
+          onCreate: _onCreate,
+          onUpgrade: _onUpgrade,
+          onConfigure: (db) async {
+            await db.execute('PRAGMA foreign_keys = ON');
+          },
+        ),
+      );
+    }
+
     if (Platform.isLinux || Platform.isWindows) {
       sqfliteFfiInit();
       databaseFactory = databaseFactoryFfi;
@@ -105,7 +129,6 @@ class AppDatabase {
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
       await _deduplicatePersonalBests(db);
-      await _createIndexes(db);
     }
     if (oldVersion < 3) {
       await _createProfilesTable(db);
@@ -134,6 +157,15 @@ class AppDatabase {
     }
     if (oldVersion < 6) {
       await _createAppSettingsTable(db);
+    }
+    if (oldVersion < 7) {
+      await _addColumnIfMissing(
+        db,
+        table: 'sync_queue',
+        column: 'sequence',
+        definition: 'INTEGER NOT NULL DEFAULT 0',
+      );
+      await db.execute('UPDATE sync_queue SET sequence = rowid');
     }
   }
 
@@ -193,6 +225,7 @@ class AppDatabase {
         status TEXT NOT NULL,
         retry_count INTEGER NOT NULL DEFAULT 0,
         last_error TEXT,
+        sequence INTEGER NOT NULL DEFAULT 0,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       )

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../../domain/entities/swim_session.dart';
 import '../../domain/entities/lap.dart';
@@ -14,10 +15,49 @@ import '../../../../core/utils/duration_utils.dart';
 const _uuid = Uuid();
 
 class SwimSessionScreen extends ConsumerStatefulWidget {
-  const SwimSessionScreen({super.key});
+  const SwimSessionScreen({
+    super.key,
+    this.initialSession,
+  });
+
+  final SwimSession? initialSession;
 
   @override
   ConsumerState<SwimSessionScreen> createState() => _SwimSessionScreenState();
+}
+
+class SwimSessionEditorScreen extends ConsumerWidget {
+  const SwimSessionEditorScreen({
+    super.key,
+    required this.sessionId,
+  });
+
+  final String sessionId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sessionsAsync = ref.watch(swimSessionsProvider);
+    return sessionsAsync.when(
+      data: (sessions) {
+        final matches = sessions.where((session) => session.id == sessionId);
+        if (matches.isEmpty) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Edit Swim Session')),
+            body: const Center(child: Text('Session not found')),
+          );
+        }
+        return SwimSessionScreen(initialSession: matches.first);
+      },
+      loading: () => Scaffold(
+        appBar: AppBar(title: const Text('Edit Swim Session')),
+        body: const Center(child: CircularProgressIndicator.adaptive()),
+      ),
+      error: (error, _) => Scaffold(
+        appBar: AppBar(title: const Text('Edit Swim Session')),
+        body: Center(child: Text('Error: $error')),
+      ),
+    );
+  }
 }
 
 class _SwimSessionScreenState extends ConsumerState<SwimSessionScreen> {
@@ -26,6 +66,28 @@ class _SwimSessionScreenState extends ConsumerState<SwimSessionScreen> {
   final _notesController = TextEditingController();
   final _laps = <_LapEntry>[];
   bool _saving = false;
+  late DateTime _sessionDate;
+  bool get _isEditing => widget.initialSession != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final session = widget.initialSession;
+    _sessionDate = session?.date ?? DateTime.now();
+    if (session != null) {
+      _stroke = session.stroke;
+      _notesController.text = session.notes ?? '';
+      _laps.addAll(
+        session.laps.map(
+          (lap) => _LapEntry(
+            id: lap.id,
+            distance: lap.distance,
+            duration: lap.time,
+          ),
+        ),
+      );
+    }
+  }
 
   @override
   void dispose() {
@@ -49,14 +111,14 @@ class _SwimSessionScreenState extends ConsumerState<SwimSessionScreen> {
 
     setState(() => _saving = true);
     try {
-      final sessionId = _uuid.v4();
+      final sessionId = widget.initialSession?.id ?? _uuid.v4();
       final profileId = ref.read(currentProfileIdProvider);
       final laps = _laps
           .asMap()
           .entries
           .map(
             (e) => Lap(
-              id: _uuid.v4(),
+              id: e.value.id ?? _uuid.v4(),
               sessionId: sessionId,
               profileId: profileId,
               distance: e.value.distance!,
@@ -69,7 +131,7 @@ class _SwimSessionScreenState extends ConsumerState<SwimSessionScreen> {
       final session = SwimSession(
         id: sessionId,
         profileId: profileId,
-        date: DateTime.now(),
+        date: _sessionDate,
         totalDistance: _totalDistance,
         totalTime: _totalTime,
         stroke: _stroke,
@@ -79,49 +141,51 @@ class _SwimSessionScreenState extends ConsumerState<SwimSessionScreen> {
             : _notesController.text.trim(),
       );
 
-      // Save session
-      await ref.read(swimSessionsProvider.notifier).addSession(session);
-
-      // Detect PBs
-      final existingPbs = ref.read(personalBestsProvider).valueOrNull ?? [];
-      final newPbs = PbService.detectNewPbs(session, existingPbs);
-      for (final pb in newPbs) {
-        await ref.read(personalBestsProvider.notifier).save(pb);
+      if (_isEditing) {
+        await ref.read(swimSessionsProvider.notifier).updateSession(session);
+      } else {
+        await ref.read(swimSessionsProvider.notifier).addSession(session);
       }
+
+      final sessions =
+          ref.read(swimSessionsProvider).valueOrNull ?? const <SwimSession>[];
+      final rebuiltPbs = PbService.rebuildFromSessions(sessions);
+      await ref.read(personalBestsProvider.notifier).replaceAll(rebuiltPbs);
 
       if (!mounted) return;
 
-      if (newPbs.isNotEmpty) {
-        _showPbDialog(newPbs.length);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Session saved!')),
-        );
-        context.pop();
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(_isEditing ? 'Session updated!' : 'Session saved!')),
+      );
+      context.pop();
     } finally {
       if (mounted) setState(() => _saving = false);
     }
   }
 
-  void _showPbDialog(int count) {
-    showDialog<void>(
+  Future<void> _pickDateTime() async {
+    final date = await showDatePicker(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('🏆 New Personal Best!'),
-        content: Text(
-            'You set $count new personal best${count > 1 ? 's' : ''} in this session!'),
-        actions: [
-          FilledButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              context.pop();
-            },
-            child: const Text('Awesome!'),
-          ),
-        ],
-      ),
+      initialDate: _sessionDate,
+      firstDate: DateTime(_sessionDate.year - 10),
+      lastDate: DateTime.now().add(const Duration(days: 1)),
     );
+    if (date == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_sessionDate),
+    );
+    if (time == null) return;
+    setState(() {
+      _sessionDate = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        time.hour,
+        time.minute,
+      );
+    });
   }
 
   void _addLap() {
@@ -138,7 +202,7 @@ class _SwimSessionScreenState extends ConsumerState<SwimSessionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('New Swim Session'),
+        title: Text(_isEditing ? 'Edit Swim Session' : 'New Swim Session'),
         actions: [
           if (_saving)
             const Padding(
@@ -179,6 +243,19 @@ class _SwimSessionScreenState extends ConsumerState<SwimSessionScreen> {
                               (s) => DropdownMenuItem(value: s, child: Text(s)))
                           .toList(),
                       onChanged: (v) => setState(() => _stroke = v!),
+                    ),
+                    const SizedBox(height: 16),
+
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.event_outlined),
+                      title: const Text('Date and time'),
+                      subtitle: Text(
+                        DateFormat('EEE, d MMM yyyy h:mm a')
+                            .format(_sessionDate),
+                      ),
+                      trailing: const Icon(Icons.edit_calendar_outlined),
+                      onTap: _pickDateTime,
                     ),
                     const SizedBox(height: 16),
 
@@ -245,8 +322,9 @@ class _SwimSessionScreenState extends ConsumerState<SwimSessionScreen> {
 }
 
 class _LapEntry {
-  _LapEntry({this.distance});
+  _LapEntry({this.id, this.distance, this.duration});
 
+  String? id;
   int? distance;
   Duration? duration;
 }
@@ -375,9 +453,7 @@ class _LapCardState extends State<_LapCard> {
     final mins = int.tryParse(_minController.text) ?? 0;
     final secs = int.tryParse(_secController.text) ?? 0;
     widget.entry.distance = dist;
-    if (dist != null) {
-      widget.entry.duration = Duration(minutes: mins, seconds: secs);
-    }
+    widget.entry.duration = Duration(minutes: mins, seconds: secs);
     widget.onChanged();
   }
 
@@ -433,6 +509,19 @@ class _LapCardState extends State<_LapCard> {
                       labelText: 'Min',
                       isDense: true,
                     ),
+                    validator: (v) {
+                      final raw = v ?? '';
+                      final parsed = int.tryParse(raw);
+                      final mins = parsed ?? 0;
+                      final secs = int.tryParse(_secController.text) ?? 0;
+                      if (raw.isNotEmpty && (parsed == null || mins < 0)) {
+                        return '>= 0';
+                      }
+                      if (mins == 0 && secs == 0) {
+                        return 'Enter time';
+                      }
+                      return null;
+                    },
                     onChanged: (_) => _updateEntry(),
                   ),
                 ),

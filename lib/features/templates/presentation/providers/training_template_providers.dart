@@ -25,7 +25,9 @@ class IntervalTemplatesNotifier
     this._dao,
     this._profileId, {
     SyncQueueDao? syncQueueDao,
+    void Function(Object error)? onQueueFailure,
   })  : _syncQueueDao = syncQueueDao,
+        _onQueueFailure = onQueueFailure,
         super(const AsyncValue.loading()) {
     load();
   }
@@ -33,6 +35,7 @@ class IntervalTemplatesNotifier
   final TrainingTemplateDao _dao;
   final String _profileId;
   final SyncQueueDao? _syncQueueDao;
+  final void Function(Object error)? _onQueueFailure;
 
   Future<void> load() async {
     state = const AsyncValue.loading();
@@ -96,8 +99,9 @@ class IntervalTemplatesNotifier
         operation: operation,
         payload: payload,
       );
-    } catch (_) {
+    } catch (error) {
       // Sync queue failures must not block local-first writes.
+      _onQueueFailure?.call(error);
     }
   }
 }
@@ -108,6 +112,9 @@ final intervalTemplatesProvider = StateNotifierProvider.autoDispose<
     ref.read(trainingTemplateDaoProvider),
     ref.watch(currentProfileIdProvider),
     syncQueueDao: ref.read(syncQueueDaoProvider),
+    onQueueFailure: (error) {
+      ref.read(syncQueueFailureProvider.notifier).state = error.toString();
+    },
   ),
 );
 
@@ -117,7 +124,9 @@ class DrylandRoutineTemplatesNotifier
     this._dao,
     this._profileId, {
     SyncQueueDao? syncQueueDao,
+    void Function(Object error)? onQueueFailure,
   })  : _syncQueueDao = syncQueueDao,
+        _onQueueFailure = onQueueFailure,
         super(const AsyncValue.loading()) {
     load();
   }
@@ -125,6 +134,7 @@ class DrylandRoutineTemplatesNotifier
   final TrainingTemplateDao _dao;
   final String _profileId;
   final SyncQueueDao? _syncQueueDao;
+  final void Function(Object error)? _onQueueFailure;
 
   Future<void> load() async {
     state = const AsyncValue.loading();
@@ -198,8 +208,9 @@ class DrylandRoutineTemplatesNotifier
         operation: operation,
         payload: payload,
       );
-    } catch (_) {
+    } catch (error) {
       // Sync queue failures must not block local-first writes.
+      _onQueueFailure?.call(error);
     }
   }
 }
@@ -210,5 +221,8 @@ final drylandRoutineTemplatesProvider = StateNotifierProvider.autoDispose<
     ref.read(trainingTemplateDaoProvider),
     ref.watch(currentProfileIdProvider),
     syncQueueDao: ref.read(syncQueueDaoProvider),
+    onQueueFailure: (error) {
+      ref.read(syncQueueFailureProvider.notifier).state = error.toString();
+    },
   ),
 );

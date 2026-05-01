@@ -145,14 +145,34 @@ void main() {
       expect(container.read(currentProfileIdProvider), 'remaining');
     });
 
+    test('uses bootstrapped selection while profile list is still loading', () {
+      final container = ProviderContainer(
+        overrides: [
+          profilesProvider.overrideWith((ref) => _LoadingProfilesNotifier()),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      container.read(selectedProfileIdProvider.notifier).state =
+          'saved-profile';
+
+      expect(container.read(currentProfileIdProvider), 'saved-profile');
+    });
+
     test('bootstraps selected profile from persisted app settings', () async {
       final settings = _MockAppSettingsDao();
+      final dao = _MockProfileDao();
       when(() => settings.getString(kSelectedProfileIdSetting))
           .thenAnswer((_) async => 'saved-profile');
+      when(() => dao.getAll()).thenAnswer((_) async => [
+            _profile(id: 'fallback'),
+            _profile(id: 'saved-profile'),
+          ]);
 
       final container = ProviderContainer(
         overrides: [
           appSettingsDaoProvider.overrideWithValue(settings),
+          profileDaoProvider.overrideWithValue(dao),
         ],
       );
       addTearDown(container.dispose);
@@ -161,6 +181,30 @@ void main() {
 
       expect(container.read(selectedProfileIdProvider), 'saved-profile');
     });
+
+    test('bootstraps deterministically when saved profile is missing',
+        () async {
+      final settings = _MockAppSettingsDao();
+      final dao = _MockProfileDao();
+      when(() => settings.getString(kSelectedProfileIdSetting))
+          .thenAnswer((_) async => 'archived-profile');
+      when(() => dao.getAll()).thenAnswer((_) async => [
+            _profile(id: 'fallback'),
+            _profile(id: 'second'),
+          ]);
+
+      final container = ProviderContainer(
+        overrides: [
+          appSettingsDaoProvider.overrideWithValue(settings),
+          profileDaoProvider.overrideWithValue(dao),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await container.read(profileSelectionBootstrapProvider.future);
+
+      expect(container.read(selectedProfileIdProvider), 'fallback');
+    });
   });
 }
 
@@ -168,6 +212,15 @@ class _StaticProfilesNotifier extends ProfilesNotifier {
   _StaticProfilesNotifier(List<SwimmerProfile> profiles)
       : super(_MockProfileDao()) {
     state = AsyncValue.data(profiles);
+  }
+
+  @override
+  Future<void> load() async {}
+}
+
+class _LoadingProfilesNotifier extends ProfilesNotifier {
+  _LoadingProfilesNotifier() : super(_MockProfileDao()) {
+    state = const AsyncValue.loading();
   }
 
   @override

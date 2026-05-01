@@ -63,6 +63,12 @@ final _router = GoRouter(
       ),
     ),
     GoRoute(
+      path: '/sessions/:id/edit',
+      builder: (context, state) => SwimSessionEditorScreen(
+        sessionId: state.pathParameters['id']!,
+      ),
+    ),
+    GoRoute(
       path: '/stopwatch',
       builder: (context, state) => const StopwatchScreen(),
     ),
@@ -82,7 +88,7 @@ class RepSwimApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    ref.watch(profileSelectionBootstrapProvider);
+    final bootstrap = ref.watch(appBootstrapProvider);
     ref.listen<String?>(selectedProfileIdProvider, (_, next) {
       if (next == null || next.isEmpty) return;
       ref
@@ -90,12 +96,32 @@ class RepSwimApp extends ConsumerWidget {
           .setString(kSelectedProfileIdSetting, next);
     });
 
-    return MaterialApp.router(
-      title: 'repSwim',
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
-      routerConfig: _router,
+    return bootstrap.when(
+      data: (_) => MaterialApp.router(
+        title: 'repSwim',
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: ThemeMode.system,
+        routerConfig: _router,
+      ),
+      loading: () => MaterialApp(
+        title: 'repSwim',
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: ThemeMode.system,
+        home: const Scaffold(
+          body: Center(child: CircularProgressIndicator.adaptive()),
+        ),
+      ),
+      error: (error, _) => MaterialApp(
+        title: 'repSwim',
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: ThemeMode.system,
+        home: Scaffold(
+          body: Center(child: Text('Startup error: $error')),
+        ),
+      ),
     );
   }
 }
