@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rep_swim/features/tempo/domain/entities/tempo_mode.dart';
 import 'package:rep_swim/features/tempo/domain/entities/tempo_template.dart';
 import 'package:rep_swim/features/tempo/presentation/providers/tempo_cue_player.dart';
+import 'package:rep_swim/features/tempo/presentation/providers/tempo_cue_scheduler.dart';
 import 'package:rep_swim/features/tempo/presentation/providers/tempo_trainer_provider.dart';
 
 class _FakeTempoCuePlayer implements TempoCuePlayer {
@@ -17,13 +20,49 @@ class _FakeTempoCuePlayer implements TempoCuePlayer {
   }
 }
 
+class _FakeTempoClock implements TempoClock {
+  Duration _elapsed = Duration.zero;
+
+  @override
+  Duration get elapsed => _elapsed;
+
+  @override
+  void start() {}
+
+  @override
+  void stop() {}
+
+  @override
+  void reset() => _elapsed = Duration.zero;
+
+  void advance(Duration duration) {
+    _elapsed += duration;
+  }
+}
+
+TempoCueScheduler _fakeAsyncScheduler(_FakeTempoClock clock) {
+  return TempoCueScheduler(
+    clockFactory: () => clock,
+    timerFactory: (duration, callback) {
+      return Timer(duration, () {
+        clock.advance(duration);
+        callback();
+      });
+    },
+  );
+}
+
 void main() {
   group('TempoTrainerNotifier', () {
     test('plays audible/vibration cue on start and accents configured beats',
         () {
       fakeAsync((async) {
         final cuePlayer = _FakeTempoCuePlayer();
-        final notifier = TempoTrainerNotifier(cuePlayer);
+        final clock = _FakeTempoClock();
+        final notifier = TempoTrainerNotifier(
+          cuePlayer,
+          cueScheduler: _fakeAsyncScheduler(clock),
+        );
 
         notifier.configure(
           mode: TempoMode.strokeRate,

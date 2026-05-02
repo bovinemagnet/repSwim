@@ -6,6 +6,7 @@ import '../../domain/entities/tempo_mode.dart';
 import '../../domain/entities/tempo_template.dart';
 import '../../domain/services/tempo_calculator.dart';
 import 'tempo_cue_player.dart';
+import 'tempo_cue_scheduler.dart';
 
 class TempoTrainerState {
   const TempoTrainerState({
@@ -127,10 +128,14 @@ class TempoTrainerState {
 }
 
 class TempoTrainerNotifier extends StateNotifier<TempoTrainerState> {
-  TempoTrainerNotifier(this._cuePlayer) : super(const TempoTrainerState());
+  TempoTrainerNotifier(
+    this._cuePlayer, {
+    TempoCueScheduler? cueScheduler,
+  })  : _cueScheduler = cueScheduler ?? TempoCueScheduler(),
+        super(const TempoTrainerState());
 
   final TempoCuePlayer _cuePlayer;
-  Timer? _timer;
+  final TempoCueScheduler _cueScheduler;
 
   void configure({
     required TempoMode mode,
@@ -173,19 +178,20 @@ class TempoTrainerNotifier extends StateNotifier<TempoTrainerState> {
     if (state.isRunning) return;
     state = state.copyWith(isRunning: true, lastCueLabel: 'Running');
     _playCue();
-    _timer = Timer.periodic(state.cueInterval, (_) => _playCue());
+    _cueScheduler.start(
+      interval: state.cueInterval,
+      onCue: _playCue,
+    );
   }
 
   void pause() {
     if (!state.isRunning) return;
-    _timer?.cancel();
-    _timer = null;
+    _cueScheduler.stop();
     state = state.copyWith(isRunning: false, lastCueLabel: 'Paused');
   }
 
   void stop() {
-    _timer?.cancel();
-    _timer = null;
+    _cueScheduler.stop();
     state = state.copyWith(
       isRunning: false,
       beatCount: 0,
@@ -200,7 +206,7 @@ class TempoTrainerNotifier extends StateNotifier<TempoTrainerState> {
     state = state.copyWith(flashActive: false);
   }
 
-  Future<void> _playCue() async {
+  void _playCue() {
     final nextBeat = state.beatCount + 1;
     final accentEvery = state.cueSettings.accentEvery;
     final accent = accentEvery > 0 && nextBeat % accentEvery == 0;
@@ -210,7 +216,7 @@ class TempoTrainerNotifier extends StateNotifier<TempoTrainerState> {
       flashActive: state.cueSettings.visualFlash,
       lastCueLabel: accent ? 'Accent cue' : _cueLabelForMode(state.mode),
     );
-    await _cuePlayer.playCue(settings: state.cueSettings, accent: accent);
+    unawaited(_cuePlayer.playCue(settings: state.cueSettings, accent: accent));
   }
 
   String _cueLabelForMode(TempoMode mode) {
@@ -223,12 +229,15 @@ class TempoTrainerNotifier extends StateNotifier<TempoTrainerState> {
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _cueScheduler.stop();
     super.dispose();
   }
 }
 
 final tempoTrainerProvider =
     StateNotifierProvider<TempoTrainerNotifier, TempoTrainerState>(
-  (ref) => TempoTrainerNotifier(ref.read(tempoCuePlayerProvider)),
+  (ref) => TempoTrainerNotifier(
+    ref.read(tempoCuePlayerProvider),
+    cueScheduler: ref.read(tempoCueSchedulerProvider),
+  ),
 );
