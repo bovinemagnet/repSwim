@@ -11,6 +11,7 @@ import 'features/swim/presentation/screens/swim_session_screen.dart';
 import 'features/stopwatch/presentation/screens/stopwatch_screen.dart';
 import 'features/stopwatch/presentation/screens/interval_timer_screen.dart';
 import 'features/stopwatch/presentation/providers/stopwatch_display_style_provider.dart';
+import 'features/tempo/presentation/screens/tempo_trainer_screen.dart';
 import 'features/pb/presentation/screens/pb_screen.dart';
 import 'features/profiles/presentation/screens/profiles_screen.dart';
 import 'features/race/presentation/screens/qualification_standards_screen.dart';
@@ -86,6 +87,10 @@ final _router = GoRouter(
     GoRoute(
       path: '/intervals',
       builder: (context, state) => const IntervalTimerScreen(),
+    ),
+    GoRoute(
+      path: '/tempo',
+      builder: (context, state) => const TempoTrainerScreen(),
     ),
     GoRoute(
       path: '/settings/sync',

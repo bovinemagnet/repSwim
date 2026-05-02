@@ -9,6 +9,9 @@ import 'package:rep_swim/features/race/domain/entities/qualification_standard.da
 import 'package:rep_swim/features/race/domain/entities/race_time.dart';
 import 'package:rep_swim/features/swim/domain/entities/lap.dart';
 import 'package:rep_swim/features/swim/domain/entities/swim_session.dart';
+import 'package:rep_swim/features/tempo/domain/entities/tempo_mode.dart';
+import 'package:rep_swim/features/tempo/domain/entities/tempo_session_result.dart';
+import 'package:rep_swim/features/tempo/domain/entities/tempo_template.dart';
 import 'package:rep_swim/features/templates/domain/entities/dryland_routine_template.dart';
 import 'package:rep_swim/features/templates/domain/entities/interval_template.dart';
 
@@ -142,6 +145,85 @@ void main() {
         (drylandRoutineTemplatePayload(routine)['exercises'] as List).single,
         containsPair('name', 'Plank'),
       );
+    });
+
+    test('serializes tempo templates and session results', () {
+      final template = TempoTemplate(
+        id: 'tempo-template-1',
+        profileId: 'profile-1',
+        name: 'Tempo 50s',
+        mode: TempoMode.strokeRate,
+        poolLengthMeters: 25,
+        targetDistanceMeters: 100,
+        targetTime: const Duration(seconds: 88),
+        strokeRate: 72,
+        breathEveryStrokes: 3,
+        cueSettings: const TempoCueSettings(
+          audible: true,
+          vibration: true,
+          visualFlash: true,
+          spoken: false,
+          accentEvery: 4,
+        ),
+        safetyWarningAcknowledged: false,
+        createdAt: DateTime.utc(2024),
+        updatedAt: DateTime.utc(2024, 1, 2),
+      );
+      final result = TempoSessionResult(
+        id: 'tempo-result-1',
+        profileId: 'profile-1',
+        templateId: template.id,
+        mode: TempoMode.strokeRate,
+        startedAt: DateTime.utc(2024, 1, 2),
+        completedAt: DateTime.utc(2024, 1, 2, 0, 2),
+        targetDistanceMeters: 100,
+        poolLengthMeters: 25,
+        targetTime: const Duration(seconds: 88),
+        targetStrokeRate: 72,
+        actualSplits: const [
+          Duration(milliseconds: 22000),
+          Duration(milliseconds: 22500),
+        ],
+        strokeCounts: const [18, 19],
+        rpe: 7,
+        notes: 'Held rhythm',
+      );
+
+      expect(tempoTemplatePayload(template), {
+        'id': 'tempo-template-1',
+        'profileId': 'profile-1',
+        'name': 'Tempo 50s',
+        'mode': 'strokeRate',
+        'poolLengthMeters': 25,
+        'targetDistanceMeters': 100,
+        'targetTimeMilliseconds': 88000,
+        'strokeRate': 72,
+        'breathEveryStrokes': 3,
+        'audibleEnabled': true,
+        'vibrationEnabled': true,
+        'visualFlashEnabled': true,
+        'spokenEnabled': false,
+        'accentEvery': 4,
+        'safetyWarningAcknowledged': false,
+        'createdAt': 1704067200000,
+        'updatedAt': 1704153600000,
+      });
+      expect(tempoSessionResultPayload(result), {
+        'id': 'tempo-result-1',
+        'profileId': 'profile-1',
+        'templateId': 'tempo-template-1',
+        'mode': 'strokeRate',
+        'startedAt': 1704153600000,
+        'completedAt': 1704153720000,
+        'targetDistanceMeters': 100,
+        'poolLengthMeters': 25,
+        'targetTimeMilliseconds': 88000,
+        'targetStrokeRate': 72,
+        'actualSplitsMilliseconds': [22000, 22500],
+        'strokeCounts': [18, 19],
+        'rpe': 7,
+        'notes': 'Held rhythm',
+      });
     });
 
     test('serializes race times with course and centiseconds', () {
