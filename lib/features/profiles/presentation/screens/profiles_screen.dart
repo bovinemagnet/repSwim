@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../domain/entities/swimmer_profile.dart';
+import '../../domain/services/profile_details_service.dart';
 import '../providers/profile_providers.dart';
 import '../providers/profile_summary_providers.dart';
+import '../widgets/profile_image_provider.dart';
 
 class ProfilesScreen extends ConsumerWidget {
   const ProfilesScreen({super.key});
@@ -25,6 +27,11 @@ class ProfilesScreen extends ConsumerWidget {
           await ref.read(profilesProvider.notifier).addProfileDetails(
                 displayName: result.displayName,
                 preferredPoolLengthMeters: result.preferredPoolLengthMeters,
+                photoUri: result.photoUri,
+                preferredStrokes: result.preferredStrokes,
+                primaryEvents: result.primaryEvents,
+                clubName: result.clubName,
+                goals: result.goals,
                 notes: result.notes,
               );
       ref.read(selectedProfileIdProvider.notifier).state = created.id;
@@ -35,6 +42,15 @@ class ProfilesScreen extends ConsumerWidget {
           profile.copyWith(
             displayName: result.displayName,
             preferredPoolLengthMeters: result.preferredPoolLengthMeters,
+            photoUri: result.photoUri,
+            preferredStrokes: result.preferredStrokes,
+            primaryEvents: result.primaryEvents,
+            clubName: result.clubName,
+            goals: result.goals,
+            clearPhotoUri: result.photoUri == null,
+            clearPrimaryEvents: result.primaryEvents == null,
+            clearClubName: result.clubName == null,
+            clearGoals: result.goals == null,
             notes: result.notes,
             clearNotes: result.notes == null,
           ),
@@ -158,6 +174,7 @@ class _ProfileTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final details = profileDetailsSummary(profile).join(' · ');
     return Consumer(
       builder: (context, ref, _) {
         final summaryAsync = ref.watch(profileSummaryProvider(profile.id));
@@ -166,16 +183,31 @@ class _ProfileTile extends StatelessWidget {
             onTap: onSelect,
             leading: _ProfileAvatar(profile: profile, isCurrent: isCurrent),
             title: Text(profile.displayName),
+            isThreeLine: true,
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  [
-                    '${profile.preferredPoolLengthMeters}m pool',
-                    if (profile.notes != null && profile.notes!.isNotEmpty)
-                      profile.notes!,
-                  ].join(' · '),
+                  details,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
+                if (profile.goals != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Goals: ${profile.goals}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                if (profile.notes != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    profile.notes!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
                 const SizedBox(height: 4),
                 summaryAsync.when(
                   data: (summary) => Text(
@@ -239,21 +271,47 @@ class _ProfileAvatar extends StatelessWidget {
     final trimmedName = profile.displayName.trim();
     final initial =
         trimmedName.isEmpty ? '?' : trimmedName.substring(0, 1).toUpperCase();
-    return CircleAvatar(
-      backgroundColor:
-          isCurrent ? colorScheme.primary : colorScheme.secondaryContainer,
-      child: isCurrent
-          ? Icon(
-              Icons.check,
-              color: colorScheme.onPrimary,
-            )
-          : Text(
+    final imageProvider = profileImageProvider(profile.photoUri);
+    return SizedBox.square(
+      dimension: 40,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          CircleAvatar(
+            backgroundColor: isCurrent
+                ? colorScheme.primary
+                : colorScheme.secondaryContainer,
+            foregroundImage: imageProvider,
+            onForegroundImageError: imageProvider == null ? null : (_, __) {},
+            child: Text(
               initial,
               style: TextStyle(
-                color: colorScheme.onSecondaryContainer,
+                color: isCurrent
+                    ? colorScheme.onPrimary
+                    : colorScheme.onSecondaryContainer,
                 fontWeight: FontWeight.bold,
               ),
             ),
+          ),
+          if (isCurrent)
+            Positioned(
+              right: -2,
+              bottom: -2,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: colorScheme.primary,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: colorScheme.surface, width: 2),
+                ),
+                child: Icon(
+                  Icons.check,
+                  size: 14,
+                  color: colorScheme.onPrimary,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -262,11 +320,21 @@ class _ProfileFormResult {
   const _ProfileFormResult({
     required this.displayName,
     required this.preferredPoolLengthMeters,
+    required this.preferredStrokes,
+    this.photoUri,
+    this.primaryEvents,
+    this.clubName,
+    this.goals,
     this.notes,
   });
 
   final String displayName;
   final int preferredPoolLengthMeters;
+  final String? photoUri;
+  final List<String> preferredStrokes;
+  final String? primaryEvents;
+  final String? clubName;
+  final String? goals;
   final String? notes;
 }
 
@@ -283,7 +351,12 @@ class _ProfileFormDialogState extends State<_ProfileFormDialog> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;
   late final TextEditingController _poolLengthController;
+  late final TextEditingController _photoUriController;
+  late final TextEditingController _primaryEventsController;
+  late final TextEditingController _clubNameController;
+  late final TextEditingController _goalsController;
   late final TextEditingController _notesController;
+  late Set<String> _preferredStrokes;
 
   @override
   void initState() {
@@ -293,13 +366,23 @@ class _ProfileFormDialogState extends State<_ProfileFormDialog> {
     _poolLengthController = TextEditingController(
       text: (profile?.preferredPoolLengthMeters ?? 25).toString(),
     );
+    _photoUriController = TextEditingController(text: profile?.photoUri ?? '');
+    _primaryEventsController =
+        TextEditingController(text: profile?.primaryEvents ?? '');
+    _clubNameController = TextEditingController(text: profile?.clubName ?? '');
+    _goalsController = TextEditingController(text: profile?.goals ?? '');
     _notesController = TextEditingController(text: profile?.notes ?? '');
+    _preferredStrokes = {...profile?.preferredStrokes ?? const <String>[]};
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _poolLengthController.dispose();
+    _photoUriController.dispose();
+    _primaryEventsController.dispose();
+    _clubNameController.dispose();
+    _goalsController.dispose();
     _notesController.dispose();
     super.dispose();
   }
@@ -310,9 +393,12 @@ class _ProfileFormDialogState extends State<_ProfileFormDialog> {
       _ProfileFormResult(
         displayName: _nameController.text.trim(),
         preferredPoolLengthMeters: int.parse(_poolLengthController.text),
-        notes: _notesController.text.trim().isEmpty
-            ? null
-            : _notesController.text.trim(),
+        photoUri: cleanProfileDetail(_photoUriController.text),
+        preferredStrokes: normalizePreferredStrokes(_preferredStrokes),
+        primaryEvents: cleanProfileDetail(_primaryEventsController.text),
+        clubName: cleanProfileDetail(_clubNameController.text),
+        goals: cleanProfileDetail(_goalsController.text),
+        notes: cleanProfileDetail(_notesController.text),
       ),
     );
   }
@@ -322,38 +408,102 @@ class _ProfileFormDialogState extends State<_ProfileFormDialog> {
     final isEditing = widget.profile != null;
     return AlertDialog(
       title: Text(isEditing ? 'Edit swimmer' : 'Add swimmer'),
-      content: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextFormField(
-              controller: _nameController,
-              autofocus: !isEditing,
-              decoration: const InputDecoration(labelText: 'Name'),
-              validator: (value) =>
-                  value == null || value.trim().isEmpty ? 'Required' : null,
+      content: SizedBox(
+        width: 520,
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: _nameController,
+                  autofocus: !isEditing,
+                  decoration: const InputDecoration(labelText: 'Name'),
+                  validator: (value) =>
+                      value == null || value.trim().isEmpty ? 'Required' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _poolLengthController,
+                  keyboardType: TextInputType.number,
+                  decoration:
+                      const InputDecoration(labelText: 'Pool length (m)'),
+                  validator: (value) {
+                    final parsed = int.tryParse(value ?? '');
+                    if (parsed == null || parsed <= 0) {
+                      return 'Enter a pool length';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _photoUriController,
+                  decoration: const InputDecoration(
+                    labelText: 'Photo path or URL',
+                    prefixIcon: Icon(Icons.image_outlined),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Preferred strokes',
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final stroke in kStrokes)
+                        FilterChip(
+                          label: Text(stroke),
+                          selected: _preferredStrokes.contains(stroke),
+                          onSelected: (selected) {
+                            setState(() {
+                              if (selected) {
+                                _preferredStrokes.add(stroke);
+                              } else {
+                                _preferredStrokes.remove(stroke);
+                              }
+                            });
+                          },
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _primaryEventsController,
+                  decoration: const InputDecoration(
+                    labelText: 'Primary events',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _clubNameController,
+                  decoration: const InputDecoration(labelText: 'Club or team'),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _goalsController,
+                  decoration: const InputDecoration(labelText: 'Goals'),
+                  maxLines: 2,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _notesController,
+                  decoration: const InputDecoration(labelText: 'Notes'),
+                  maxLines: 2,
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _poolLengthController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Pool length (m)'),
-              validator: (value) {
-                final parsed = int.tryParse(value ?? '');
-                if (parsed == null || parsed <= 0) {
-                  return 'Enter a pool length';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _notesController,
-              decoration: const InputDecoration(labelText: 'Notes'),
-              maxLines: 2,
-            ),
-          ],
+          ),
         ),
       ),
       actions: [

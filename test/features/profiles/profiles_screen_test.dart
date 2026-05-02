@@ -14,6 +14,10 @@ SwimmerProfile _profile() {
     id: 'profile-1',
     displayName: 'Sophie',
     preferredPoolLengthMeters: 50,
+    preferredStrokes: const ['Freestyle', 'Butterfly'],
+    primaryEvents: '50m free',
+    clubName: 'Metro Swim',
+    goals: 'State final',
     notes: 'Sprint focus',
     createdAt: DateTime(2024),
     updatedAt: DateTime(2024),
@@ -68,7 +72,12 @@ void main() {
 
     expect(find.text('Sophie'), findsOneWidget);
     expect(find.text('S'), findsOneWidget);
-    expect(find.text('50m pool · Sprint focus'), findsOneWidget);
+    expect(
+      find.text('50m pool · Metro Swim · Freestyle, Butterfly · 50m free'),
+      findsOneWidget,
+    );
+    expect(find.text('Goals: State final'), findsOneWidget);
+    expect(find.text('Sprint focus'), findsOneWidget);
     expect(find.text('3 swims · 750m · 2 dryland · 4 PBs'), findsNWidgets(2));
   });
 
@@ -84,6 +93,25 @@ void main() {
       '33',
     );
     await tester.enterText(
+      find.widgetWithText(TextFormField, 'Photo path or URL'),
+      '/tmp/mia-profile.jpg',
+    );
+    await tester.tap(find.widgetWithText(FilterChip, 'Freestyle'));
+    await tester.tap(find.widgetWithText(FilterChip, 'Backstroke'));
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Primary events'),
+      '200m back',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Club or team'),
+      'Harbour Swim',
+    );
+    await tester.ensureVisible(find.widgetWithText(TextFormField, 'Goals'));
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Goals'),
+      'Qualify for states',
+    );
+    await tester.enterText(
       find.widgetWithText(TextFormField, 'Notes'),
       'Open water',
     );
@@ -91,7 +119,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Mia'), findsOneWidget);
-    expect(find.text('33m pool · Open water'), findsOneWidget);
+    expect(
+      find.text('33m pool · Harbour Swim · Freestyle, Backstroke · 200m back'),
+      findsOneWidget,
+    );
+    expect(find.text('Goals: Qualify for states'), findsOneWidget);
+    expect(find.text('Open water'), findsOneWidget);
     expect(container.read(selectedProfileIdProvider), 'created-1');
   });
 
@@ -171,6 +204,11 @@ class _MutableProfilesNotifier extends ProfilesNotifier {
   Future<SwimmerProfile> addProfileDetails({
     required String displayName,
     int preferredPoolLengthMeters = 25,
+    String? photoUri,
+    List<String> preferredStrokes = const [],
+    String? primaryEvents,
+    String? clubName,
+    String? goals,
     String? notes,
   }) async {
     final now = DateTime(2024);
@@ -178,6 +216,12 @@ class _MutableProfilesNotifier extends ProfilesNotifier {
       id: 'created-${++_createdCount}',
       displayName: displayName.trim(),
       preferredPoolLengthMeters: preferredPoolLengthMeters,
+      photoUri: photoUri?.trim().isEmpty == true ? null : photoUri?.trim(),
+      preferredStrokes: preferredStrokes,
+      primaryEvents:
+          primaryEvents?.trim().isEmpty == true ? null : primaryEvents?.trim(),
+      clubName: clubName?.trim().isEmpty == true ? null : clubName?.trim(),
+      goals: goals?.trim().isEmpty == true ? null : goals?.trim(),
       notes: notes?.trim().isEmpty == true ? null : notes?.trim(),
       createdAt: now,
       updatedAt: now,

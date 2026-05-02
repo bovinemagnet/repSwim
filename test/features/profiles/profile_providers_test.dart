@@ -58,11 +58,21 @@ void main() {
       final created = await notifier.addProfileDetails(
         displayName: ' Sophie ',
         preferredPoolLengthMeters: 50,
+        photoUri: ' /tmp/sophie.jpg ',
+        preferredStrokes: const ['Freestyle', 'Freestyle', 'Unknown'],
+        primaryEvents: ' 50m free ',
+        clubName: ' Metro Swim ',
+        goals: ' State final ',
         notes: 'Sprint focus',
       );
 
       expect(created.displayName, 'Sophie');
       expect(created.preferredPoolLengthMeters, 50);
+      expect(created.photoUri, '/tmp/sophie.jpg');
+      expect(created.preferredStrokes, ['Freestyle']);
+      expect(created.primaryEvents, '50m free');
+      expect(created.clubName, 'Metro Swim');
+      expect(created.goals, 'State final');
       expect(created.notes, 'Sprint focus');
       verify(() => dao.insert(any())).called(1);
       verify(
@@ -99,13 +109,26 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       await notifier.updateProfile(
-        existing.copyWith(displayName: ' Ethan ', notes: '  '),
+        existing.copyWith(
+          displayName: ' Ethan ',
+          photoUri: ' ',
+          preferredStrokes: const ['Backstroke', 'Unknown'],
+          primaryEvents: ' 100m back ',
+          clubName: '  ',
+          goals: ' Better turns ',
+          notes: '  ',
+        ),
       );
       await notifier.archiveProfile(existing.id);
 
       final captured = verify(() => dao.update(captureAny())).captured.single
           as SwimmerProfile;
       expect(captured.displayName, 'Ethan');
+      expect(captured.photoUri, isNull);
+      expect(captured.preferredStrokes, ['Backstroke']);
+      expect(captured.primaryEvents, '100m back');
+      expect(captured.clubName, isNull);
+      expect(captured.goals, 'Better turns');
       expect(captured.notes, isNull);
       verify(() => dao.archive(existing.id)).called(1);
       verify(
