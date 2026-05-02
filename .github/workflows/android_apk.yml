@@ -1,0 +1,66 @@
+# Builds the Android development APK and uploads it to the GitHub Release
+# for every non-major version tag (e.g. v0.0.1, v1.2.3).
+# Major releases (e.g. v1.0.0, v3.0.0) are intentionally skipped.
+#
+# Tag pattern that triggers this workflow: v* (e.g. v0.0.1, v2.1.6)
+# Tag pattern that is skipped:            v<N>.0.0 (e.g. v1.0.0, v3.0.0)
+
+name: Android Dev APK Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  # ── 1. Determine whether the pushed tag is a non-major release ─────────────
+  check-version:
+    name: Check version tag
+    runs-on: ubuntu-latest
+    outputs:
+      is_non_major: ${{ steps.check.outputs.is_non_major }}
+    steps:
+      - name: Evaluate tag
+        id: check
+        run: |
+          TAG="${{ github.ref_name }}"
+          if echo "$TAG" | grep -qE '^v[0-9]+\.0\.0$'; then
+            echo "Tag $TAG is a major release — skipping APK build."
+            echo "is_non_major=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Tag $TAG is a non-major release — APK build will proceed."
+            echo "is_non_major=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ── 2. Build and upload the APK (only for non-major releases) ──────────────
+  build-and-upload:
+    name: Build & upload Android APK
+    needs: check-version
+    if: needs.check-version.outputs.is_non_major == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # required to upload release assets
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # Intentionally builds a debug (development) APK for internal testing.
+      # This matches the project's requirement for a "dev APK" per the issue spec.
+      # Switch to `flutter build apk --release` if a production-signed build is needed.
+      - name: Build debug APK
+        run: flutter build apk --debug
+
+      - name: Upload APK to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: build/app/outputs/flutter-apk/app-debug.apk

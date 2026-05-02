@@ -108,6 +108,29 @@ flutter analyze && flutter test
 
 The near-term focus is to complete V1 polish: richer desktop layouts and backend-client implementation. Sync is designed as optional and local-first; local mutations are queued now, and a future backend can use Spring Boot or Quarkus with PostgreSQL behind the interfaces in `lib/core/sync/`. AI workout generation, video stroke analysis, wearables, backend sync, and social features are planned later and are described in [docs/plans/prd.md](docs/plans/prd.md) and [docs/plans/updates.md](docs/plans/updates.md).
 
+## Releases & CI/CD
+
+### Android Dev APK
+
+A GitHub Actions workflow (`.github/workflows/android_apk.yml`) automatically builds the Android debug APK and attaches it to the corresponding GitHub Release whenever a **non-major** version tag is pushed.
+
+| Tag example | Behaviour |
+|-------------|-----------|
+| `v0.0.4`    | ✅ APK built and uploaded to release |
+| `v2.1.6`    | ✅ APK built and uploaded to release |
+| `v3.0.0`    | 🚫 Skipped (major release) |
+
+**Rule:** a tag is treated as a *major release* when it matches the pattern `v<N>.0.0` (minor and patch are both `0`). All other `v*` tags trigger the build.
+
+To create a release that includes the APK:
+
+```sh
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The APK (`app-debug.apk`) will appear in the release assets automatically. If no GitHub Release exists for the tag yet, the workflow creates one.
+
 ## Contributing
 
 See [AGENTS.md](AGENTS.md) for repository guidelines, coding style, test expectations, and pull request conventions.
