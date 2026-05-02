@@ -33,6 +33,7 @@ const appDestinations = [
     icon: Icons.list_alt_outlined,
   ),
   AppDestination(path: '/analytics', label: 'Analytics', icon: Icons.bar_chart),
+  AppDestination(path: '/races', label: 'Races', icon: Icons.flag_outlined),
   AppDestination(path: '/pb', label: 'PBs', icon: Icons.emoji_events_outlined),
   AppDestination(
     path: '/dryland',

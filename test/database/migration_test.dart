@@ -11,7 +11,7 @@ void main() {
   });
 
   group('database migrations', () {
-    for (final oldVersion in [1, 3, 4, 5]) {
+    for (final oldVersion in [1, 3, 4, 5, 7]) {
       test('upgrades version $oldVersion to current schema', () async {
         final path = p.join(
           Directory.systemTemp.path,
@@ -35,6 +35,7 @@ void main() {
         expect(await _hasTable(db, 'interval_templates'), isTrue);
         expect(await _hasTable(db, 'dryland_routine_templates'), isTrue);
         expect(await _hasTable(db, 'app_settings'), isTrue);
+        expect(await _hasTable(db, 'race_times'), isTrue);
 
         final sessions = await db.query('swim_sessions');
         final pbs = await db.query('personal_bests');
@@ -176,6 +177,20 @@ Future<void> _createOldSchema(Database db, int version) async {
         weight REAL
       )
     ''');
+  }
+  if (version >= 6) {
+    await db.execute('''
+      CREATE TABLE app_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    ''');
+  }
+  if (version >= 7) {
+    await db.execute(
+      'ALTER TABLE sync_queue ADD COLUMN sequence INTEGER NOT NULL DEFAULT 0',
+    );
   }
 }
 

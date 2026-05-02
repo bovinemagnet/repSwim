@@ -11,6 +11,13 @@ void main() {
       expect(getFormFactor(999), FormFactor.tablet);
       expect(getFormFactor(1000), FormFactor.desktop);
     });
+
+    test('includes race time destination', () {
+      expect(
+        appDestinations.map((destination) => destination.path),
+        contains('/races'),
+      );
+    });
   });
 
   group('AdaptiveShell', () {

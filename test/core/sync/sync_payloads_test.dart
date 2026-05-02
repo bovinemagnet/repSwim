@@ -5,6 +5,7 @@ import 'package:rep_swim/core/sync/sync_payloads.dart';
 import 'package:rep_swim/features/dryland/domain/entities/dryland_workout.dart';
 import 'package:rep_swim/features/dryland/domain/entities/exercise.dart';
 import 'package:rep_swim/features/profiles/domain/entities/swimmer_profile.dart';
+import 'package:rep_swim/features/race/domain/entities/race_time.dart';
 import 'package:rep_swim/features/swim/domain/entities/lap.dart';
 import 'package:rep_swim/features/swim/domain/entities/swim_session.dart';
 import 'package:rep_swim/features/templates/domain/entities/dryland_routine_template.dart';
@@ -130,6 +131,40 @@ void main() {
         (drylandRoutineTemplatePayload(routine)['exercises'] as List).single,
         containsPair('name', 'Plank'),
       );
+    });
+
+    test('serializes race times with course and centiseconds', () {
+      final raceTime = RaceTime(
+        id: 'race-time-1',
+        profileId: 'profile-1',
+        raceName: 'State Sprint',
+        eventDate: DateTime.utc(2024, 5, 1),
+        distance: 100,
+        stroke: 'Freestyle',
+        course: RaceCourse.longCourseMeters,
+        time: const Duration(minutes: 1, seconds: 2, milliseconds: 340),
+        notes: 'Final',
+        placement: 2,
+        location: 'MSAC',
+        createdAt: DateTime.utc(2024, 5, 1, 1),
+        updatedAt: DateTime.utc(2024, 5, 1, 2),
+      );
+
+      expect(raceTimePayload(raceTime), {
+        'id': 'race-time-1',
+        'profileId': 'profile-1',
+        'raceName': 'State Sprint',
+        'eventDate': 1714521600000,
+        'distance': 100,
+        'stroke': 'Freestyle',
+        'courseType': 'longCourseMeters',
+        'timeCentiseconds': 6234,
+        'notes': 'Final',
+        'placement': 2,
+        'location': 'MSAC',
+        'createdAt': 1714525200000,
+        'updatedAt': 1714528800000,
+      });
     });
   });
 }
