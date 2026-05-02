@@ -3,12 +3,14 @@ import 'package:rep_swim/core/sync/sync_mode.dart';
 import 'package:rep_swim/database/app_database.dart';
 import 'package:rep_swim/database/daos/dryland_dao.dart';
 import 'package:rep_swim/database/daos/pb_dao.dart';
+import 'package:rep_swim/database/daos/race_time_dao.dart';
 import 'package:rep_swim/database/daos/swim_session_dao.dart';
 import 'package:rep_swim/database/daos/sync_queue_dao.dart';
 import 'package:rep_swim/database/daos/training_template_dao.dart';
 import 'package:rep_swim/features/dryland/domain/entities/dryland_workout.dart';
 import 'package:rep_swim/features/dryland/domain/entities/exercise.dart';
 import 'package:rep_swim/features/pb/domain/entities/personal_best.dart';
+import 'package:rep_swim/features/race/domain/entities/race_time.dart';
 import 'package:rep_swim/features/swim/domain/entities/lap.dart';
 import 'package:rep_swim/features/swim/domain/entities/swim_session.dart';
 import 'package:rep_swim/features/templates/domain/entities/dryland_routine_template.dart';
@@ -268,6 +270,48 @@ void main() {
       expect(pbs, hasLength(1));
       expect(pbs.single.id, 'pb-slow');
       expect(pbs.single.bestTime, const Duration(seconds: 62));
+    });
+
+    test('race times insert, update, delete, and stay profile scoped',
+        () async {
+      final dao = RaceTimeDao(appDb);
+      final race = RaceTime(
+        id: 'race-1',
+        profileId: 'profile-1',
+        raceName: 'Club Champs',
+        eventDate: DateTime.utc(2024, 5, 1),
+        distance: 100,
+        stroke: 'Freestyle',
+        course: RaceCourse.shortCourseMeters,
+        time: const Duration(seconds: 59, milliseconds: 230),
+        placement: 3,
+        createdAt: DateTime.utc(2024, 5, 1),
+        updatedAt: DateTime.utc(2024, 5, 1),
+      );
+      final otherProfileRace = race.copyWith(
+        id: 'race-2',
+        profileId: 'profile-2',
+      );
+
+      await dao.insertOrUpdate(race);
+      await dao.insertOrUpdate(otherProfileRace);
+      await dao.insertOrUpdate(
+        race.copyWith(
+          raceName: 'State Sprint',
+          time: const Duration(seconds: 58, milliseconds: 910),
+        ),
+      );
+
+      final profileOneRaces = await dao.getAll('profile-1');
+      final profileTwoRaces = await dao.getAll('profile-2');
+      expect(profileOneRaces, hasLength(1));
+      expect(profileOneRaces.single.raceName, 'State Sprint');
+      expect(profileOneRaces.single.time.inMilliseconds, 58910);
+      expect(profileTwoRaces.single.id, 'race-2');
+
+      await dao.delete('race-1', 'profile-1');
+      expect(await dao.getAll('profile-1'), isEmpty);
+      expect(await dao.getAll('profile-2'), hasLength(1));
     });
   });
 }

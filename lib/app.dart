@@ -12,6 +12,7 @@ import 'features/stopwatch/presentation/screens/stopwatch_screen.dart';
 import 'features/stopwatch/presentation/screens/interval_timer_screen.dart';
 import 'features/pb/presentation/screens/pb_screen.dart';
 import 'features/profiles/presentation/screens/profiles_screen.dart';
+import 'features/race/presentation/screens/race_times_screen.dart';
 import 'features/analytics/presentation/screens/analytics_screen.dart';
 import 'features/dryland/presentation/screens/dryland_screen.dart';
 import 'features/settings/presentation/screens/sync_settings_screen.dart';
@@ -33,6 +34,10 @@ final _router = GoRouter(
         GoRoute(
           path: '/analytics',
           builder: (context, state) => const AnalyticsScreen(),
+        ),
+        GoRoute(
+          path: '/races',
+          builder: (context, state) => const RaceTimesScreen(),
         ),
         GoRoute(
           path: '/pb',

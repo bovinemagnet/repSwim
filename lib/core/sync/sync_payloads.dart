@@ -1,6 +1,7 @@
 import '../../features/dryland/domain/entities/dryland_workout.dart';
 import '../../features/dryland/domain/entities/exercise.dart';
 import '../../features/profiles/domain/entities/swimmer_profile.dart';
+import '../../features/race/domain/entities/race_time.dart';
 import '../../features/swim/domain/entities/lap.dart';
 import '../../features/swim/domain/entities/swim_session.dart';
 import '../../features/templates/domain/entities/dryland_routine_template.dart';
@@ -60,6 +61,24 @@ Map<String, Object?> swimmerProfilePayload(SwimmerProfile profile) {
     'notes': profile.notes,
     'createdAt': profile.createdAt.toUtc().millisecondsSinceEpoch,
     'updatedAt': profile.updatedAt.toUtc().millisecondsSinceEpoch,
+  };
+}
+
+Map<String, Object?> raceTimePayload(RaceTime raceTime) {
+  return {
+    'id': raceTime.id,
+    'profileId': raceTime.profileId,
+    'raceName': raceTime.raceName,
+    'eventDate': raceTime.eventDate.toUtc().millisecondsSinceEpoch,
+    'distance': raceTime.distance,
+    'stroke': raceTime.stroke,
+    'courseType': raceTime.course.name,
+    'timeCentiseconds': raceTime.timeCentiseconds,
+    'notes': raceTime.notes,
+    'placement': raceTime.placement,
+    'location': raceTime.location,
+    'createdAt': raceTime.createdAt.toUtc().millisecondsSinceEpoch,
+    'updatedAt': raceTime.updatedAt.toUtc().millisecondsSinceEpoch,
   };
 }
 

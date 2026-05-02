@@ -124,6 +124,7 @@ class AppDatabase {
     await _createSyncQueueTable(db);
     await _createTrainingTemplateTables(db);
     await _createAppSettingsTable(db);
+    await _createRaceTimesTable(db);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -166,6 +167,9 @@ class AppDatabase {
         definition: 'INTEGER NOT NULL DEFAULT 0',
       );
       await db.execute('UPDATE sync_queue SET sequence = rowid');
+    }
+    if (oldVersion < 8) {
+      await _createRaceTimesTable(db);
     }
   }
 
@@ -279,6 +283,34 @@ class AppDatabase {
         value TEXT NOT NULL,
         updated_at INTEGER NOT NULL
       )
+    ''');
+  }
+
+  Future<void> _createRaceTimesTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS race_times (
+        id TEXT PRIMARY KEY,
+        profile_id TEXT NOT NULL,
+        race_name TEXT NOT NULL,
+        event_date INTEGER NOT NULL,
+        distance INTEGER NOT NULL,
+        stroke TEXT NOT NULL,
+        course_type TEXT NOT NULL,
+        time_centiseconds INTEGER NOT NULL,
+        notes TEXT,
+        placement INTEGER,
+        location TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_race_times_profile_event
+      ON race_times(profile_id, event_date DESC)
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_race_times_profile_course_event
+      ON race_times(profile_id, stroke, distance, course_type)
     ''');
   }
 
