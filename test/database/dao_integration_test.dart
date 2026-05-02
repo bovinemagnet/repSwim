@@ -18,6 +18,9 @@ import 'package:rep_swim/features/race/domain/entities/qualification_standard.da
 import 'package:rep_swim/features/race/domain/entities/race_time.dart';
 import 'package:rep_swim/features/swim/domain/entities/lap.dart';
 import 'package:rep_swim/features/swim/domain/entities/swim_session.dart';
+import 'package:rep_swim/features/tempo/domain/entities/tempo_mode.dart';
+import 'package:rep_swim/features/tempo/domain/entities/tempo_session_result.dart';
+import 'package:rep_swim/features/tempo/domain/entities/tempo_template.dart';
 import 'package:rep_swim/features/templates/domain/entities/dryland_routine_template.dart';
 
 void main() {
@@ -178,6 +181,64 @@ void main() {
         await dao.getDrylandRoutineExercises('template-1', 'profile-1'),
         isEmpty,
       );
+    });
+
+    test('tempo templates and session results persist offline', () async {
+      final dao = TrainingTemplateDao(appDb);
+      final now = DateTime.utc(2024);
+      final template = TempoTemplate(
+        id: 'tempo-template-1',
+        profileId: 'profile-1',
+        name: 'CSS 100s',
+        mode: TempoMode.lapPace,
+        poolLengthMeters: 25,
+        targetDistanceMeters: 100,
+        targetTime: const Duration(seconds: 88),
+        strokeRate: 72,
+        breathEveryStrokes: 3,
+        cueSettings: const TempoCueSettings(
+          audible: true,
+          vibration: true,
+          visualFlash: true,
+          spoken: false,
+          accentEvery: 4,
+        ),
+        safetyWarningAcknowledged: false,
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      await dao.insertTempoTemplate(template);
+      final templates = await dao.getTempoTemplates('profile-1');
+      expect(templates.single.name, 'CSS 100s');
+      expect(templates.single.cueSettings.vibration, isTrue);
+
+      final result = TempoSessionResult(
+        id: 'tempo-result-1',
+        profileId: 'profile-1',
+        templateId: template.id,
+        mode: TempoMode.lapPace,
+        startedAt: now,
+        completedAt: now.add(const Duration(minutes: 2)),
+        targetDistanceMeters: 100,
+        poolLengthMeters: 25,
+        targetTime: const Duration(seconds: 88),
+        targetStrokeRate: 72,
+        actualSplits: const [
+          Duration(milliseconds: 22000),
+          Duration(milliseconds: 22400),
+        ],
+        strokeCounts: const [18, 19],
+        rpe: 7,
+        notes: 'Held rhythm',
+      );
+
+      await dao.insertTempoSessionResult(result);
+      final results = await dao.getTempoSessionResults('profile-1');
+      expect(results.single.templateId, template.id);
+      expect(results.single.actualSplits.last.inMilliseconds, 22400);
+      expect(results.single.strokeCounts, [18, 19]);
+      expect(results.single.notes, 'Held rhythm');
     });
 
     test('sync queue preserves insertion order and increments retry count',

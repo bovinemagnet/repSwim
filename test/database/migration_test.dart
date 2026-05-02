@@ -11,7 +11,7 @@ void main() {
   });
 
   group('database migrations', () {
-    for (final oldVersion in [1, 3, 4, 5, 7, 8, 9, 10]) {
+    for (final oldVersion in [1, 3, 4, 5, 7, 8, 9, 10, 11]) {
       test('upgrades version $oldVersion to current schema', () async {
         final path = p.join(
           Directory.systemTemp.path,
@@ -38,6 +38,8 @@ void main() {
         expect(await _hasTable(db, 'race_times'), isTrue);
         expect(await _hasTable(db, 'qualification_standards'), isTrue);
         expect(await _hasTable(db, 'meet_qualification_standards'), isTrue);
+        expect(await _hasTable(db, 'tempo_templates'), isTrue);
+        expect(await _hasTable(db, 'tempo_session_results'), isTrue);
         expect(await _hasColumn(db, 'swimmer_profiles', 'photo_uri'), isTrue);
         expect(
           await _hasColumn(db, 'swimmer_profiles', 'preferred_strokes_json'),
@@ -249,6 +251,29 @@ Future<void> _createOldSchema(Database db, int version) async {
         bronze_centiseconds INTEGER NOT NULL,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
+      )
+    ''');
+  }
+  if (version >= 11) {
+    await db.execute('''
+      CREATE TABLE meet_qualification_standards (
+        id TEXT PRIMARY KEY,
+        source_name TEXT NOT NULL,
+        sex TEXT,
+        age_group_label TEXT NOT NULL,
+        min_age INTEGER,
+        max_age INTEGER,
+        is_open INTEGER NOT NULL,
+        distance INTEGER,
+        stroke TEXT,
+        course_type TEXT NOT NULL,
+        qualifying_centiseconds INTEGER,
+        mc_points INTEGER,
+        is_relay INTEGER NOT NULL,
+        relay_event TEXT,
+        valid_from INTEGER NOT NULL,
+        competition_start INTEGER NOT NULL,
+        competition_end INTEGER NOT NULL
       )
     ''');
   }

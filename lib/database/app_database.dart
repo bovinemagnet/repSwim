@@ -182,6 +182,9 @@ class AppDatabase {
     if (oldVersion < 11) {
       await _createMeetQualificationStandardsTable(db);
     }
+    if (oldVersion < 12) {
+      await _createTempoTables(db);
+    }
   }
 
   Future<void> _createIndexes(Database db) async {
@@ -327,6 +330,61 @@ class AppDatabase {
         weight REAL,
         FOREIGN KEY (template_id) REFERENCES dryland_routine_templates(id) ON DELETE CASCADE
       )
+    ''');
+
+    await _createTempoTables(db);
+  }
+
+  Future<void> _createTempoTables(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS tempo_templates (
+        id TEXT PRIMARY KEY,
+        profile_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        mode TEXT NOT NULL,
+        pool_length_meters INTEGER NOT NULL,
+        target_distance_meters INTEGER NOT NULL,
+        target_time_milliseconds INTEGER NOT NULL,
+        stroke_rate REAL NOT NULL,
+        breath_every_strokes INTEGER NOT NULL,
+        audible_enabled INTEGER NOT NULL,
+        vibration_enabled INTEGER NOT NULL,
+        visual_flash_enabled INTEGER NOT NULL,
+        spoken_enabled INTEGER NOT NULL,
+        accent_every INTEGER NOT NULL,
+        safety_warning_acknowledged INTEGER NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS tempo_session_results (
+        id TEXT PRIMARY KEY,
+        profile_id TEXT NOT NULL,
+        template_id TEXT,
+        mode TEXT NOT NULL,
+        started_at INTEGER NOT NULL,
+        completed_at INTEGER,
+        target_distance_meters INTEGER NOT NULL,
+        pool_length_meters INTEGER NOT NULL,
+        target_time_milliseconds INTEGER NOT NULL,
+        target_stroke_rate REAL NOT NULL,
+        actual_splits_milliseconds_json TEXT NOT NULL,
+        stroke_counts_json TEXT NOT NULL,
+        rpe INTEGER,
+        notes TEXT
+      )
+    ''');
+
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_tempo_templates_profile_name
+      ON tempo_templates(profile_id, name COLLATE NOCASE)
+    ''');
+
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_tempo_session_results_profile_started
+      ON tempo_session_results(profile_id, started_at DESC)
     ''');
   }
 

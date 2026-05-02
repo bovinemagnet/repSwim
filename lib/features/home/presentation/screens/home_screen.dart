@@ -359,6 +359,18 @@ class _QuickActions extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: _ActionCard(
+                  icon: Icons.graphic_eq,
+                  label: 'Tempo',
+                  onTap: () => context.push('/tempo'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _ActionCard(
                   icon: Icons.bar_chart,
                   label: 'Analytics',
                   onTap: () => context.push('/analytics'),

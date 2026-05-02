@@ -1,5 +1,10 @@
+import 'dart:convert';
+
 import 'package:sqflite/sqflite.dart';
 
+import '../../features/tempo/domain/entities/tempo_mode.dart';
+import '../../features/tempo/domain/entities/tempo_session_result.dart';
+import '../../features/tempo/domain/entities/tempo_template.dart';
 import '../../features/templates/domain/entities/dryland_routine_template.dart';
 import '../../features/templates/domain/entities/interval_template.dart';
 import '../app_database.dart';
@@ -120,6 +125,93 @@ class TrainingTemplateDao {
     );
   }
 
+  Future<List<TempoTemplate>> getTempoTemplates(String profileId) async {
+    final db = await _db.database;
+    final rows = await db.query(
+      'tempo_templates',
+      where: 'profile_id = ?',
+      whereArgs: [profileId],
+      orderBy: 'name COLLATE NOCASE ASC',
+    );
+    return rows.map(_tempoTemplateFromRow).toList();
+  }
+
+  Future<void> insertTempoTemplate(TempoTemplate template) async {
+    final db = await _db.database;
+    await db.insert(
+      'tempo_templates',
+      {
+        'id': template.id,
+        'profile_id': template.profileId,
+        'name': template.name,
+        'mode': template.mode.name,
+        'pool_length_meters': template.poolLengthMeters,
+        'target_distance_meters': template.targetDistanceMeters,
+        'target_time_milliseconds': template.targetTime.inMilliseconds,
+        'stroke_rate': template.strokeRate,
+        'breath_every_strokes': template.breathEveryStrokes,
+        'audible_enabled': template.cueSettings.audible ? 1 : 0,
+        'vibration_enabled': template.cueSettings.vibration ? 1 : 0,
+        'visual_flash_enabled': template.cueSettings.visualFlash ? 1 : 0,
+        'spoken_enabled': template.cueSettings.spoken ? 1 : 0,
+        'accent_every': template.cueSettings.accentEvery,
+        'safety_warning_acknowledged':
+            template.safetyWarningAcknowledged ? 1 : 0,
+        'created_at': template.createdAt.millisecondsSinceEpoch,
+        'updated_at': template.updatedAt.millisecondsSinceEpoch,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<void> deleteTempoTemplate(String id, String profileId) async {
+    final db = await _db.database;
+    await db.delete(
+      'tempo_templates',
+      where: 'id = ? AND profile_id = ?',
+      whereArgs: [id, profileId],
+    );
+  }
+
+  Future<void> insertTempoSessionResult(TempoSessionResult result) async {
+    final db = await _db.database;
+    await db.insert(
+      'tempo_session_results',
+      {
+        'id': result.id,
+        'profile_id': result.profileId,
+        'template_id': result.templateId,
+        'mode': result.mode.name,
+        'started_at': result.startedAt.millisecondsSinceEpoch,
+        'completed_at': result.completedAt?.millisecondsSinceEpoch,
+        'target_distance_meters': result.targetDistanceMeters,
+        'pool_length_meters': result.poolLengthMeters,
+        'target_time_milliseconds': result.targetTime.inMilliseconds,
+        'target_stroke_rate': result.targetStrokeRate,
+        'actual_splits_milliseconds_json': jsonEncode(
+          result.actualSplits.map((split) => split.inMilliseconds).toList(),
+        ),
+        'stroke_counts_json': jsonEncode(result.strokeCounts),
+        'rpe': result.rpe,
+        'notes': result.notes,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<TempoSessionResult>> getTempoSessionResults(
+    String profileId,
+  ) async {
+    final db = await _db.database;
+    final rows = await db.query(
+      'tempo_session_results',
+      where: 'profile_id = ?',
+      whereArgs: [profileId],
+      orderBy: 'started_at DESC',
+    );
+    return rows.map(_tempoSessionResultFromRow).toList();
+  }
+
   Future<List<DrylandRoutineExerciseTemplate>> getDrylandRoutineExercises(
     String templateId,
     String profileId,
@@ -186,6 +278,76 @@ class TrainingTemplateDao {
       sets: row['sets'] as int,
       reps: row['reps'] as int,
       weight: row['weight'] as double?,
+    );
+  }
+
+  TempoTemplate _tempoTemplateFromRow(Map<String, Object?> row) {
+    return TempoTemplate(
+      id: row['id'] as String,
+      profileId: row['profile_id'] as String,
+      name: row['name'] as String,
+      mode: tempoModeFromName(row['mode'] as String),
+      poolLengthMeters: row['pool_length_meters'] as int,
+      targetDistanceMeters: row['target_distance_meters'] as int,
+      targetTime: Duration(
+        milliseconds: row['target_time_milliseconds'] as int,
+      ),
+      strokeRate: (row['stroke_rate'] as num).toDouble(),
+      breathEveryStrokes: row['breath_every_strokes'] as int,
+      cueSettings: TempoCueSettings(
+        audible: row['audible_enabled'] == 1,
+        vibration: row['vibration_enabled'] == 1,
+        visualFlash: row['visual_flash_enabled'] == 1,
+        spoken: row['spoken_enabled'] == 1,
+        accentEvery: row['accent_every'] as int,
+      ),
+      safetyWarningAcknowledged: row['safety_warning_acknowledged'] == 1,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(
+        row['created_at'] as int,
+        isUtc: true,
+      ),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(
+        row['updated_at'] as int,
+        isUtc: true,
+      ),
+    );
+  }
+
+  TempoSessionResult _tempoSessionResultFromRow(Map<String, Object?> row) {
+    final splitValues =
+        (jsonDecode(row['actual_splits_milliseconds_json'] as String) as List)
+            .cast<int>();
+    final strokeCounts =
+        (jsonDecode(row['stroke_counts_json'] as String) as List).cast<int>();
+
+    return TempoSessionResult(
+      id: row['id'] as String,
+      profileId: row['profile_id'] as String,
+      templateId: row['template_id'] as String?,
+      mode: tempoModeFromName(row['mode'] as String),
+      startedAt: DateTime.fromMillisecondsSinceEpoch(
+        row['started_at'] as int,
+        isUtc: true,
+      ),
+      completedAt: row['completed_at'] == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(
+              row['completed_at'] as int,
+              isUtc: true,
+            ),
+      targetDistanceMeters: row['target_distance_meters'] as int,
+      poolLengthMeters: row['pool_length_meters'] as int,
+      targetTime: Duration(
+        milliseconds: row['target_time_milliseconds'] as int,
+      ),
+      targetStrokeRate: (row['target_stroke_rate'] as num).toDouble(),
+      actualSplits: [
+        for (final milliseconds in splitValues)
+          Duration(milliseconds: milliseconds),
+      ],
+      strokeCounts: strokeCounts,
+      rpe: row['rpe'] as int?,
+      notes: row['notes'] as String?,
     );
   }
 }

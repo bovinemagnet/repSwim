@@ -1,3 +1,5 @@
+import '../../features/tempo/domain/entities/tempo_session_result.dart';
+import '../../features/tempo/domain/entities/tempo_template.dart';
 import '../../features/dryland/domain/entities/dryland_workout.dart';
 import '../../features/dryland/domain/entities/exercise.dart';
 import '../../features/profiles/domain/entities/swimmer_profile.dart';
@@ -117,6 +119,49 @@ Map<String, Object?> intervalTemplatePayload(IntervalTemplate template) {
     'restSeconds': template.restDuration.inSeconds,
     'createdAt': template.createdAt.toUtc().millisecondsSinceEpoch,
     'updatedAt': template.updatedAt.toUtc().millisecondsSinceEpoch,
+  };
+}
+
+Map<String, Object?> tempoTemplatePayload(TempoTemplate template) {
+  return {
+    'id': template.id,
+    'profileId': template.profileId,
+    'name': template.name,
+    'mode': template.mode.name,
+    'poolLengthMeters': template.poolLengthMeters,
+    'targetDistanceMeters': template.targetDistanceMeters,
+    'targetTimeMilliseconds': template.targetTime.inMilliseconds,
+    'strokeRate': template.strokeRate,
+    'breathEveryStrokes': template.breathEveryStrokes,
+    'audibleEnabled': template.cueSettings.audible,
+    'vibrationEnabled': template.cueSettings.vibration,
+    'visualFlashEnabled': template.cueSettings.visualFlash,
+    'spokenEnabled': template.cueSettings.spoken,
+    'accentEvery': template.cueSettings.accentEvery,
+    'safetyWarningAcknowledged': template.safetyWarningAcknowledged,
+    'createdAt': template.createdAt.toUtc().millisecondsSinceEpoch,
+    'updatedAt': template.updatedAt.toUtc().millisecondsSinceEpoch,
+  };
+}
+
+Map<String, Object?> tempoSessionResultPayload(TempoSessionResult result) {
+  return {
+    'id': result.id,
+    'profileId': result.profileId,
+    'templateId': result.templateId,
+    'mode': result.mode.name,
+    'startedAt': result.startedAt.toUtc().millisecondsSinceEpoch,
+    'completedAt': result.completedAt?.toUtc().millisecondsSinceEpoch,
+    'targetDistanceMeters': result.targetDistanceMeters,
+    'poolLengthMeters': result.poolLengthMeters,
+    'targetTimeMilliseconds': result.targetTime.inMilliseconds,
+    'targetStrokeRate': result.targetStrokeRate,
+    'actualSplitsMilliseconds': [
+      for (final split in result.actualSplits) split.inMilliseconds,
+    ],
+    'strokeCounts': result.strokeCounts,
+    'rpe': result.rpe,
+    'notes': result.notes,
   };
 }
 
