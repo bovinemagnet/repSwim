@@ -80,7 +80,7 @@ class AnalyticsScreen extends ConsumerWidget {
                   physics: const NeverScrollableScrollPhysics(),
                   mainAxisSpacing: 12,
                   crossAxisSpacing: 12,
-                  childAspectRatio: isWide ? 2.2 : 1.25,
+                  childAspectRatio: isWide ? 1.8 : 1.25,
                   children: stats,
                 ),
                 const SizedBox(height: 24),

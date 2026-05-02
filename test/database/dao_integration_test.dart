@@ -2,7 +2,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rep_swim/core/sync/sync_mode.dart';
 import 'package:rep_swim/database/app_database.dart';
 import 'package:rep_swim/database/daos/dryland_dao.dart';
+import 'package:rep_swim/database/daos/meet_qualification_standard_dao.dart';
 import 'package:rep_swim/database/daos/pb_dao.dart';
+import 'package:rep_swim/database/daos/qualification_standard_dao.dart';
 import 'package:rep_swim/database/daos/race_time_dao.dart';
 import 'package:rep_swim/database/daos/swim_session_dao.dart';
 import 'package:rep_swim/database/daos/sync_queue_dao.dart';
@@ -10,6 +12,9 @@ import 'package:rep_swim/database/daos/training_template_dao.dart';
 import 'package:rep_swim/features/dryland/domain/entities/dryland_workout.dart';
 import 'package:rep_swim/features/dryland/domain/entities/exercise.dart';
 import 'package:rep_swim/features/pb/domain/entities/personal_best.dart';
+import 'package:rep_swim/features/race/data/qualification_sources/victorian_metro_sc_2026.dart';
+import 'package:rep_swim/features/race/domain/entities/meet_qualification_standard.dart';
+import 'package:rep_swim/features/race/domain/entities/qualification_standard.dart';
 import 'package:rep_swim/features/race/domain/entities/race_time.dart';
 import 'package:rep_swim/features/swim/domain/entities/lap.dart';
 import 'package:rep_swim/features/swim/domain/entities/swim_session.dart';
@@ -312,6 +317,82 @@ void main() {
       await dao.delete('race-1', 'profile-1');
       expect(await dao.getAll('profile-1'), isEmpty);
       expect(await dao.getAll('profile-2'), hasLength(1));
+    });
+
+    test(
+        'qualification standards insert, update, delete, and stay profile scoped',
+        () async {
+      final dao = QualificationStandardDao(appDb);
+      final standard = QualificationStandard(
+        id: 'standard-1',
+        profileId: 'profile-1',
+        age: 12,
+        distance: 50,
+        stroke: 'Freestyle',
+        course: RaceCourse.shortCourseMeters,
+        goldTime: const Duration(seconds: 30),
+        silverTime: const Duration(seconds: 32),
+        bronzeTime: const Duration(seconds: 35),
+        createdAt: DateTime.utc(2024, 5, 1),
+        updatedAt: DateTime.utc(2024, 5, 1),
+      );
+      final otherProfileStandard = standard.copyWith(
+        id: 'standard-2',
+        profileId: 'profile-2',
+      );
+
+      await dao.insertOrUpdate(standard);
+      await dao.insertOrUpdate(otherProfileStandard);
+      await dao.insertOrUpdate(
+        standard.copyWith(
+          distance: 100,
+          bronzeTime: const Duration(seconds: 70),
+        ),
+      );
+
+      final profileOneStandards = await dao.getAll('profile-1');
+      final profileTwoStandards = await dao.getAll('profile-2');
+      expect(profileOneStandards, hasLength(1));
+      expect(profileOneStandards.single.distance, 100);
+      expect(
+          profileOneStandards.single.bronzeTime, const Duration(seconds: 70));
+      expect(profileTwoStandards.single.id, 'standard-2');
+
+      await dao.delete('standard-1', 'profile-1');
+      expect(await dao.getAll('profile-1'), isEmpty);
+      expect(await dao.getAll('profile-2'), hasLength(1));
+    });
+
+    test('meet qualification standards import and replace by source', () async {
+      final dao = MeetQualificationStandardDao(appDb);
+      final standards = victorianMetroSc2026QualifyingStandards();
+
+      await dao.replaceSource(victorianMetroSc2026SourceName, standards);
+
+      final imported = await dao.getAll(
+        sourceName: victorianMetroSc2026SourceName,
+      );
+      expect(imported, hasLength(92));
+      final maleFreestyle = imported.singleWhere(
+        (standard) =>
+            standard.sex == QualificationSex.male &&
+            standard.ageGroupLabel == '14 - 15 Years' &&
+            standard.distance == 100 &&
+            standard.stroke == 'Freestyle',
+      );
+      expect(maleFreestyle.qualifyingCentiseconds, 5962);
+      expect(maleFreestyle.validFrom, DateTime.utc(2025, 7, 26));
+
+      await dao.replaceSource(
+        victorianMetroSc2026SourceName,
+        standards.take(1).toList(),
+      );
+
+      final replaced = await dao.getAll(
+        sourceName: victorianMetroSc2026SourceName,
+      );
+      expect(replaced, hasLength(1));
+      expect(replaced.single.sourceName, victorianMetroSc2026SourceName);
     });
   });
 }

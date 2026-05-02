@@ -125,6 +125,8 @@ class AppDatabase {
     await _createTrainingTemplateTables(db);
     await _createAppSettingsTable(db);
     await _createRaceTimesTable(db);
+    await _createQualificationStandardsTable(db);
+    await _createMeetQualificationStandardsTable(db);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -173,6 +175,12 @@ class AppDatabase {
     }
     if (oldVersion < 9) {
       await _addProfileDetailColumns(db);
+    }
+    if (oldVersion < 10) {
+      await _createQualificationStandardsTable(db);
+    }
+    if (oldVersion < 11) {
+      await _createMeetQualificationStandardsTable(db);
     }
   }
 
@@ -357,6 +365,67 @@ class AppDatabase {
     await db.execute('''
       CREATE INDEX IF NOT EXISTS idx_race_times_profile_course_event
       ON race_times(profile_id, stroke, distance, course_type)
+    ''');
+  }
+
+  Future<void> _createQualificationStandardsTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS qualification_standards (
+        id TEXT PRIMARY KEY,
+        profile_id TEXT NOT NULL,
+        age INTEGER NOT NULL,
+        distance INTEGER NOT NULL,
+        stroke TEXT NOT NULL,
+        course_type TEXT NOT NULL,
+        gold_centiseconds INTEGER NOT NULL,
+        silver_centiseconds INTEGER NOT NULL,
+        bronze_centiseconds INTEGER NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_qualification_standards_profile_event
+      ON qualification_standards(profile_id, age, stroke, distance, course_type)
+    ''');
+  }
+
+  Future<void> _createMeetQualificationStandardsTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS meet_qualification_standards (
+        id TEXT PRIMARY KEY,
+        source_name TEXT NOT NULL,
+        sex TEXT,
+        age_group_label TEXT NOT NULL,
+        min_age INTEGER,
+        max_age INTEGER,
+        is_open INTEGER NOT NULL,
+        distance INTEGER,
+        stroke TEXT,
+        course_type TEXT NOT NULL,
+        qualifying_centiseconds INTEGER,
+        mc_points INTEGER,
+        is_relay INTEGER NOT NULL,
+        relay_event TEXT,
+        valid_from INTEGER NOT NULL,
+        competition_start INTEGER NOT NULL,
+        competition_end INTEGER NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_meet_qualification_standards_source
+      ON meet_qualification_standards(source_name)
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_meet_qualification_standards_event
+      ON meet_qualification_standards(
+        source_name,
+        sex,
+        age_group_label,
+        stroke,
+        distance,
+        course_type
+      )
     ''');
   }
 

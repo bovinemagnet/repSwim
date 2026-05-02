@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rep_swim/features/stopwatch/presentation/providers/stopwatch_display_style_provider.dart';
 import 'package:rep_swim/features/stopwatch/presentation/screens/stopwatch_screen.dart';
 
-Future<void> _pumpStopwatch(WidgetTester tester) async {
+Future<void> _pumpStopwatch(
+  WidgetTester tester, {
+  StopwatchDisplayStyle displayStyle = StopwatchDisplayStyle.standard,
+}) async {
   await tester.pumpWidget(
-    const ProviderScope(
-      child: MaterialApp(
+    ProviderScope(
+      key: UniqueKey(),
+      overrides: [
+        stopwatchDisplayStyleProvider.overrideWith((ref) => displayStyle),
+      ],
+      child: const MaterialApp(
         home: StopwatchScreen(),
       ),
     ),
@@ -33,6 +41,44 @@ void main() {
       expect(find.text('Laps'), findsOneWidget);
       expect(find.text('1 laps'), findsOneWidget);
       expect(find.textContaining('Split:'), findsOneWidget);
+    });
+
+    testWidgets('uses the selected stopwatch display style', (tester) async {
+      await _pumpStopwatch(
+        tester,
+        displayStyle: StopwatchDisplayStyle.nixieTube,
+      );
+      expect(
+        find.byKey(const ValueKey('nixie-stopwatch-display')),
+        findsOneWidget,
+      );
+
+      await _pumpStopwatch(
+        tester,
+        displayStyle: StopwatchDisplayStyle.vacuumFluorescent,
+      );
+      expect(
+        find.byKey(const ValueKey('vfd-stopwatch-display')),
+        findsOneWidget,
+      );
+
+      await _pumpStopwatch(
+        tester,
+        displayStyle: StopwatchDisplayStyle.numitron,
+      );
+      expect(
+        find.byKey(const ValueKey('numitron-stopwatch-display')),
+        findsOneWidget,
+      );
+
+      await _pumpStopwatch(
+        tester,
+        displayStyle: StopwatchDisplayStyle.splitFlap,
+      );
+      expect(
+        find.byKey(const ValueKey('split-flap-stopwatch-display')),
+        findsOneWidget,
+      );
     });
 
     testWidgets('opens save dialog after stopwatch has elapsed',

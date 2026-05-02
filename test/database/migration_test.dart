@@ -11,7 +11,7 @@ void main() {
   });
 
   group('database migrations', () {
-    for (final oldVersion in [1, 3, 4, 5, 7, 8]) {
+    for (final oldVersion in [1, 3, 4, 5, 7, 8, 9, 10]) {
       test('upgrades version $oldVersion to current schema', () async {
         final path = p.join(
           Directory.systemTemp.path,
@@ -36,6 +36,8 @@ void main() {
         expect(await _hasTable(db, 'dryland_routine_templates'), isTrue);
         expect(await _hasTable(db, 'app_settings'), isTrue);
         expect(await _hasTable(db, 'race_times'), isTrue);
+        expect(await _hasTable(db, 'qualification_standards'), isTrue);
+        expect(await _hasTable(db, 'meet_qualification_standards'), isTrue);
         expect(await _hasColumn(db, 'swimmer_profiles', 'photo_uri'), isTrue);
         expect(
           await _hasColumn(db, 'swimmer_profiles', 'preferred_strokes_json'),
@@ -217,6 +219,34 @@ Future<void> _createOldSchema(Database db, int version) async {
         notes TEXT,
         placement INTEGER,
         location TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    ''');
+  }
+  if (version >= 9) {
+    await db.execute('ALTER TABLE swimmer_profiles ADD COLUMN photo_uri TEXT');
+    await db.execute(
+      "ALTER TABLE swimmer_profiles ADD COLUMN preferred_strokes_json TEXT NOT NULL DEFAULT '[]'",
+    );
+    await db.execute(
+      'ALTER TABLE swimmer_profiles ADD COLUMN primary_events TEXT',
+    );
+    await db.execute('ALTER TABLE swimmer_profiles ADD COLUMN club_name TEXT');
+    await db.execute('ALTER TABLE swimmer_profiles ADD COLUMN goals TEXT');
+  }
+  if (version >= 10) {
+    await db.execute('''
+      CREATE TABLE qualification_standards (
+        id TEXT PRIMARY KEY,
+        profile_id TEXT NOT NULL,
+        age INTEGER NOT NULL,
+        distance INTEGER NOT NULL,
+        stroke TEXT NOT NULL,
+        course_type TEXT NOT NULL,
+        gold_centiseconds INTEGER NOT NULL,
+        silver_centiseconds INTEGER NOT NULL,
+        bronze_centiseconds INTEGER NOT NULL,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       )
