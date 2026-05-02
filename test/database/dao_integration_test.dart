@@ -209,9 +209,17 @@ void main() {
       );
 
       await dao.insertTempoTemplate(template);
+      await dao.insertTempoTemplate(
+        template.copyWith(
+          id: 'tempo-template-2',
+          profileId: 'profile-2',
+          name: 'Other swimmer tempo',
+        ),
+      );
       final templates = await dao.getTempoTemplates('profile-1');
       expect(templates.single.name, 'CSS 100s');
       expect(templates.single.cueSettings.vibration, isTrue);
+      expect(await dao.getTempoTemplates('profile-2'), hasLength(1));
 
       final result = TempoSessionResult(
         id: 'tempo-result-1',
@@ -234,11 +242,26 @@ void main() {
       );
 
       await dao.insertTempoSessionResult(result);
+      await dao.insertTempoSessionResult(
+        TempoSessionResult(
+          id: 'tempo-result-2',
+          profileId: 'profile-2',
+          mode: TempoMode.lapPace,
+          startedAt: now,
+          targetDistanceMeters: 100,
+          poolLengthMeters: 25,
+          targetTime: const Duration(seconds: 88),
+          targetStrokeRate: 72,
+          actualSplits: const [Duration(milliseconds: 22000)],
+          strokeCounts: const [18],
+        ),
+      );
       final results = await dao.getTempoSessionResults('profile-1');
       expect(results.single.templateId, template.id);
       expect(results.single.actualSplits.last.inMilliseconds, 22400);
       expect(results.single.strokeCounts, [18, 19]);
       expect(results.single.notes, 'Held rhythm');
+      expect(await dao.getTempoSessionResults('profile-2'), hasLength(1));
     });
 
     test('sync queue preserves insertion order and increments retry count',
