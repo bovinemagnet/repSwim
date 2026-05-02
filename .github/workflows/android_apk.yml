@@ -53,6 +53,9 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Analyse (compile check)
+        run: flutter analyze
+
       # Intentionally builds a debug (development) APK for internal testing.
       # This matches the project's requirement for a "dev APK" per the issue spec.
       # Switch to `flutter build apk --release` if a production-signed build is needed.
