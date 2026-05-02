@@ -10,8 +10,10 @@ import 'features/swim/presentation/screens/swim_sessions_screen.dart';
 import 'features/swim/presentation/screens/swim_session_screen.dart';
 import 'features/stopwatch/presentation/screens/stopwatch_screen.dart';
 import 'features/stopwatch/presentation/screens/interval_timer_screen.dart';
+import 'features/stopwatch/presentation/providers/stopwatch_display_style_provider.dart';
 import 'features/pb/presentation/screens/pb_screen.dart';
 import 'features/profiles/presentation/screens/profiles_screen.dart';
+import 'features/race/presentation/screens/qualification_standards_screen.dart';
 import 'features/race/presentation/screens/race_times_screen.dart';
 import 'features/analytics/presentation/screens/analytics_screen.dart';
 import 'features/dryland/presentation/screens/dryland_screen.dart';
@@ -38,6 +40,10 @@ final _router = GoRouter(
         GoRoute(
           path: '/races',
           builder: (context, state) => const RaceTimesScreen(),
+        ),
+        GoRoute(
+          path: '/qualification-standards',
+          builder: (context, state) => const QualificationStandardsScreen(),
         ),
         GoRoute(
           path: '/pb',
@@ -94,6 +100,7 @@ class RepSwimApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final bootstrap = ref.watch(appBootstrapProvider);
+    final displayBootstrap = ref.watch(stopwatchDisplayStyleBootstrapProvider);
     ref.listen<String?>(selectedProfileIdProvider, (_, next) {
       if (next == null || next.isEmpty) return;
       ref
@@ -102,30 +109,42 @@ class RepSwimApp extends ConsumerWidget {
     });
 
     return bootstrap.when(
-      data: (_) => MaterialApp.router(
-        title: 'repSwim',
-        theme: AppTheme.lightTheme,
-        darkTheme: AppTheme.darkTheme,
-        themeMode: ThemeMode.system,
-        routerConfig: _router,
-      ),
-      loading: () => MaterialApp(
-        title: 'repSwim',
-        theme: AppTheme.lightTheme,
-        darkTheme: AppTheme.darkTheme,
-        themeMode: ThemeMode.system,
-        home: const Scaffold(
-          body: Center(child: CircularProgressIndicator.adaptive()),
+      data: (_) => displayBootstrap.when(
+        data: (_) => MaterialApp.router(
+          title: 'repSwim',
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: ThemeMode.system,
+          routerConfig: _router,
         ),
+        loading: _loadingApp,
+        error: _errorApp,
       ),
-      error: (error, _) => MaterialApp(
-        title: 'repSwim',
-        theme: AppTheme.lightTheme,
-        darkTheme: AppTheme.darkTheme,
-        themeMode: ThemeMode.system,
-        home: Scaffold(
-          body: Center(child: Text('Startup error: $error')),
-        ),
+      loading: _loadingApp,
+      error: _errorApp,
+    );
+  }
+
+  Widget _loadingApp() {
+    return MaterialApp(
+      title: 'repSwim',
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ThemeMode.system,
+      home: const Scaffold(
+        body: Center(child: CircularProgressIndicator.adaptive()),
+      ),
+    );
+  }
+
+  Widget _errorApp(Object error, StackTrace _) {
+    return MaterialApp(
+      title: 'repSwim',
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ThemeMode.system,
+      home: Scaffold(
+        body: Center(child: Text('Startup error: $error')),
       ),
     );
   }

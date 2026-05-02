@@ -84,5 +84,17 @@ void main() {
       expect(find.text('Last 7 Days'), findsOneWidget);
       expect(find.text('Pace Trend'), findsOneWidget);
     });
+
+    testWidgets('does not overflow stats at the desktop breakpoint',
+        (tester) async {
+      await _pumpAnalytics(tester, size: const Size(1000, 800));
+
+      final grid = tester.widget<GridView>(find.byType(GridView));
+      final delegate =
+          grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
+
+      expect(delegate.crossAxisCount, 4);
+      expect(find.text('Consistency'), findsOneWidget);
+    });
   });
 }

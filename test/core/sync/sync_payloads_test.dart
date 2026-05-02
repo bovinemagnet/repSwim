@@ -5,6 +5,7 @@ import 'package:rep_swim/core/sync/sync_payloads.dart';
 import 'package:rep_swim/features/dryland/domain/entities/dryland_workout.dart';
 import 'package:rep_swim/features/dryland/domain/entities/exercise.dart';
 import 'package:rep_swim/features/profiles/domain/entities/swimmer_profile.dart';
+import 'package:rep_swim/features/race/domain/entities/qualification_standard.dart';
 import 'package:rep_swim/features/race/domain/entities/race_time.dart';
 import 'package:rep_swim/features/swim/domain/entities/lap.dart';
 import 'package:rep_swim/features/swim/domain/entities/swim_session.dart';
@@ -172,6 +173,36 @@ void main() {
         'notes': 'Final',
         'placement': 2,
         'location': 'MSAC',
+        'createdAt': 1714525200000,
+        'updatedAt': 1714528800000,
+      });
+    });
+
+    test('serializes qualification standards by age and medal tier', () {
+      final standard = QualificationStandard(
+        id: 'standard-1',
+        profileId: 'profile-1',
+        age: 12,
+        distance: 50,
+        stroke: 'Freestyle',
+        course: RaceCourse.shortCourseMeters,
+        goldTime: const Duration(seconds: 30),
+        silverTime: const Duration(seconds: 32),
+        bronzeTime: const Duration(seconds: 35),
+        createdAt: DateTime.utc(2024, 5, 1, 1),
+        updatedAt: DateTime.utc(2024, 5, 1, 2),
+      );
+
+      expect(qualificationStandardPayload(standard), {
+        'id': 'standard-1',
+        'profileId': 'profile-1',
+        'age': 12,
+        'distance': 50,
+        'stroke': 'Freestyle',
+        'courseType': 'shortCourseMeters',
+        'goldCentiseconds': 3000,
+        'silverCentiseconds': 3200,
+        'bronzeCentiseconds': 3500,
         'createdAt': 1714525200000,
         'updatedAt': 1714528800000,
       });

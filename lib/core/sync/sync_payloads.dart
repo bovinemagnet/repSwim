@@ -1,6 +1,7 @@
 import '../../features/dryland/domain/entities/dryland_workout.dart';
 import '../../features/dryland/domain/entities/exercise.dart';
 import '../../features/profiles/domain/entities/swimmer_profile.dart';
+import '../../features/race/domain/entities/qualification_standard.dart';
 import '../../features/race/domain/entities/race_time.dart';
 import '../../features/swim/domain/entities/lap.dart';
 import '../../features/swim/domain/entities/swim_session.dart';
@@ -84,6 +85,24 @@ Map<String, Object?> raceTimePayload(RaceTime raceTime) {
     'location': raceTime.location,
     'createdAt': raceTime.createdAt.toUtc().millisecondsSinceEpoch,
     'updatedAt': raceTime.updatedAt.toUtc().millisecondsSinceEpoch,
+  };
+}
+
+Map<String, Object?> qualificationStandardPayload(
+  QualificationStandard standard,
+) {
+  return {
+    'id': standard.id,
+    'profileId': standard.profileId,
+    'age': standard.age,
+    'distance': standard.distance,
+    'stroke': standard.stroke,
+    'courseType': standard.course.name,
+    'goldCentiseconds': standard.goldCentiseconds,
+    'silverCentiseconds': standard.silverCentiseconds,
+    'bronzeCentiseconds': standard.bronzeCentiseconds,
+    'createdAt': standard.createdAt.toUtc().millisecondsSinceEpoch,
+    'updatedAt': standard.updatedAt.toUtc().millisecondsSinceEpoch,
   };
 }
 

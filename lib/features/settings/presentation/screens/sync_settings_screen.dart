@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/sync/sync_mode.dart';
 import '../../../../core/sync/sync_providers.dart';
 import '../../../profiles/presentation/providers/profile_providers.dart';
+import '../../../stopwatch/presentation/providers/stopwatch_display_style_provider.dart';
 
 class SyncSettingsScreen extends ConsumerWidget {
   const SyncSettingsScreen({super.key});
@@ -15,6 +16,7 @@ class SyncSettingsScreen extends ConsumerWidget {
     final summaryAsync = ref.watch(syncQueueSummaryProvider);
     final service = ref.watch(syncServiceProvider);
     final queueFailure = ref.watch(syncQueueFailureProvider);
+    final stopwatchDisplayStyle = ref.watch(stopwatchDisplayStyleProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Sync Settings')),
@@ -125,6 +127,35 @@ class SyncSettingsScreen extends ConsumerWidget {
                 : null,
             icon: const Icon(Icons.sync),
             label: const Text('Sync now'),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Stopwatch Display',
+            style: Theme.of(context)
+                .textTheme
+                .titleMedium
+                ?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<StopwatchDisplayStyle>(
+            initialValue: stopwatchDisplayStyle,
+            decoration: const InputDecoration(
+              prefixIcon: Icon(Icons.timer_outlined),
+              labelText: 'Timer display style',
+            ),
+            items: StopwatchDisplayStyle.values
+                .map(
+                  (style) => DropdownMenuItem(
+                    value: style,
+                    child: Text(style.label),
+                  ),
+                )
+                .toList(),
+            onChanged: (style) {
+              if (style != null) {
+                setStopwatchDisplayStyle(ref, style);
+              }
+            },
           ),
         ],
       ),

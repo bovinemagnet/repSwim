@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/constants/app_constants.dart';
@@ -98,7 +99,16 @@ class _RaceTimesScreenState extends ConsumerState<RaceTimesScreen> {
   Widget build(BuildContext context) {
     final raceTimesAsync = ref.watch(raceTimesProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Race Times')),
+      appBar: AppBar(
+        title: const Text('Race Times'),
+        actions: [
+          IconButton(
+            tooltip: 'Qualification standards',
+            icon: const Icon(Icons.workspace_premium_outlined),
+            onPressed: () => context.push('/qualification-standards'),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showRaceDialog(),
         icon: const Icon(Icons.add),
