@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:sqflite/sqflite.dart';
 import '../../core/constants/app_constants.dart';
 import '../../features/profiles/domain/entities/swimmer_profile.dart';
@@ -17,6 +19,11 @@ class ProfileDao {
         'id': kDefaultProfileId,
         'display_name': kDefaultProfileName,
         'preferred_pool_length_meters': 25,
+        'photo_uri': null,
+        'preferred_strokes_json': '[]',
+        'primary_events': null,
+        'club_name': null,
+        'goals': null,
         'notes': null,
         'created_at': now,
         'updated_at': now,
@@ -45,6 +52,11 @@ class ProfileDao {
         'id': profile.id,
         'display_name': profile.displayName,
         'preferred_pool_length_meters': profile.preferredPoolLengthMeters,
+        'photo_uri': profile.photoUri,
+        'preferred_strokes_json': jsonEncode(profile.preferredStrokes),
+        'primary_events': profile.primaryEvents,
+        'club_name': profile.clubName,
+        'goals': profile.goals,
         'notes': profile.notes,
         'created_at': profile.createdAt.millisecondsSinceEpoch,
         'updated_at': profile.updatedAt.millisecondsSinceEpoch,
@@ -61,6 +73,11 @@ class ProfileDao {
       {
         'display_name': profile.displayName,
         'preferred_pool_length_meters': profile.preferredPoolLengthMeters,
+        'photo_uri': profile.photoUri,
+        'preferred_strokes_json': jsonEncode(profile.preferredStrokes),
+        'primary_events': profile.primaryEvents,
+        'club_name': profile.clubName,
+        'goals': profile.goals,
         'notes': profile.notes,
         'updated_at': profile.updatedAt.millisecondsSinceEpoch,
       },
@@ -88,9 +105,26 @@ class ProfileDao {
       id: row['id'] as String,
       displayName: row['display_name'] as String,
       preferredPoolLengthMeters: row['preferred_pool_length_meters'] as int,
+      photoUri: row['photo_uri'] as String?,
+      preferredStrokes:
+          _decodePreferredStrokes(row['preferred_strokes_json'] as String?),
+      primaryEvents: row['primary_events'] as String?,
+      clubName: row['club_name'] as String?,
+      goals: row['goals'] as String?,
       notes: row['notes'] as String?,
       createdAt: DateTime.fromMillisecondsSinceEpoch(row['created_at'] as int),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(row['updated_at'] as int),
     );
+  }
+
+  List<String> _decodePreferredStrokes(String? value) {
+    if (value == null || value.isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(value);
+      if (decoded is! List) return const [];
+      return decoded.whereType<String>().toList();
+    } on FormatException {
+      return const [];
+    }
   }
 }

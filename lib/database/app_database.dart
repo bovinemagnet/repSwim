@@ -171,6 +171,9 @@ class AppDatabase {
     if (oldVersion < 8) {
       await _createRaceTimesTable(db);
     }
+    if (oldVersion < 9) {
+      await _addProfileDetailColumns(db);
+    }
   }
 
   Future<void> _createIndexes(Database db) async {
@@ -186,6 +189,11 @@ class AppDatabase {
         id TEXT PRIMARY KEY,
         display_name TEXT NOT NULL,
         preferred_pool_length_meters INTEGER NOT NULL DEFAULT 25,
+        photo_uri TEXT,
+        preferred_strokes_json TEXT NOT NULL DEFAULT '[]',
+        primary_events TEXT,
+        club_name TEXT,
+        goals TEXT,
         notes TEXT,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL,
@@ -202,6 +210,11 @@ class AppDatabase {
         'id': kDefaultProfileId,
         'display_name': kDefaultProfileName,
         'preferred_pool_length_meters': 25,
+        'photo_uri': null,
+        'preferred_strokes_json': '[]',
+        'primary_events': null,
+        'club_name': null,
+        'goals': null,
         'notes': null,
         'created_at': now,
         'updated_at': now,
@@ -214,6 +227,39 @@ class AppDatabase {
   Future<void> _addProfileColumn(Database db, String table) async {
     await db.execute(
       "ALTER TABLE $table ADD COLUMN profile_id TEXT NOT NULL DEFAULT '$kDefaultProfileId'",
+    );
+  }
+
+  Future<void> _addProfileDetailColumns(Database db) async {
+    await _addColumnIfMissing(
+      db,
+      table: 'swimmer_profiles',
+      column: 'photo_uri',
+      definition: 'TEXT',
+    );
+    await _addColumnIfMissing(
+      db,
+      table: 'swimmer_profiles',
+      column: 'preferred_strokes_json',
+      definition: "TEXT NOT NULL DEFAULT '[]'",
+    );
+    await _addColumnIfMissing(
+      db,
+      table: 'swimmer_profiles',
+      column: 'primary_events',
+      definition: 'TEXT',
+    );
+    await _addColumnIfMissing(
+      db,
+      table: 'swimmer_profiles',
+      column: 'club_name',
+      definition: 'TEXT',
+    );
+    await _addColumnIfMissing(
+      db,
+      table: 'swimmer_profiles',
+      column: 'goals',
+      definition: 'TEXT',
     );
   }
 

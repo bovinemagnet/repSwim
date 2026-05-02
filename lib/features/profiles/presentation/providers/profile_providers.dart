@@ -10,6 +10,7 @@ import '../../../../database/daos/app_settings_dao.dart';
 import '../../../../database/daos/profile_dao.dart';
 import '../../../../database/daos/sync_queue_dao.dart';
 import '../../domain/entities/swimmer_profile.dart';
+import '../../domain/services/profile_details_service.dart';
 
 const _uuid = Uuid();
 
@@ -53,6 +54,11 @@ class ProfilesNotifier extends StateNotifier<AsyncValue<List<SwimmerProfile>>> {
   Future<SwimmerProfile> addProfileDetails({
     required String displayName,
     int preferredPoolLengthMeters = 25,
+    String? photoUri,
+    List<String> preferredStrokes = const [],
+    String? primaryEvents,
+    String? clubName,
+    String? goals,
     String? notes,
   }) async {
     final now = DateTime.now().toUtc();
@@ -60,7 +66,12 @@ class ProfilesNotifier extends StateNotifier<AsyncValue<List<SwimmerProfile>>> {
       id: _uuid.v4(),
       displayName: displayName.trim(),
       preferredPoolLengthMeters: preferredPoolLengthMeters,
-      notes: notes?.trim().isEmpty == true ? null : notes?.trim(),
+      photoUri: cleanProfileDetail(photoUri),
+      preferredStrokes: normalizePreferredStrokes(preferredStrokes),
+      primaryEvents: cleanProfileDetail(primaryEvents),
+      clubName: cleanProfileDetail(clubName),
+      goals: cleanProfileDetail(goals),
+      notes: cleanProfileDetail(notes),
       createdAt: now,
       updatedAt: now,
     );
@@ -76,9 +87,17 @@ class ProfilesNotifier extends StateNotifier<AsyncValue<List<SwimmerProfile>>> {
   Future<void> updateProfile(SwimmerProfile profile) async {
     final updated = profile.copyWith(
       displayName: profile.displayName.trim(),
-      notes:
-          profile.notes?.trim().isEmpty == true ? null : profile.notes?.trim(),
-      clearNotes: profile.notes?.trim().isEmpty == true,
+      photoUri: cleanProfileDetail(profile.photoUri),
+      preferredStrokes: normalizePreferredStrokes(profile.preferredStrokes),
+      primaryEvents: cleanProfileDetail(profile.primaryEvents),
+      clubName: cleanProfileDetail(profile.clubName),
+      goals: cleanProfileDetail(profile.goals),
+      notes: cleanProfileDetail(profile.notes),
+      clearPhotoUri: cleanProfileDetail(profile.photoUri) == null,
+      clearPrimaryEvents: cleanProfileDetail(profile.primaryEvents) == null,
+      clearClubName: cleanProfileDetail(profile.clubName) == null,
+      clearGoals: cleanProfileDetail(profile.goals) == null,
+      clearNotes: cleanProfileDetail(profile.notes) == null,
       updatedAt: DateTime.now().toUtc(),
     );
     await _dao.update(updated);

@@ -11,7 +11,7 @@ void main() {
   });
 
   group('database migrations', () {
-    for (final oldVersion in [1, 3, 4, 5, 7]) {
+    for (final oldVersion in [1, 3, 4, 5, 7, 8]) {
       test('upgrades version $oldVersion to current schema', () async {
         final path = p.join(
           Directory.systemTemp.path,
@@ -36,6 +36,17 @@ void main() {
         expect(await _hasTable(db, 'dryland_routine_templates'), isTrue);
         expect(await _hasTable(db, 'app_settings'), isTrue);
         expect(await _hasTable(db, 'race_times'), isTrue);
+        expect(await _hasColumn(db, 'swimmer_profiles', 'photo_uri'), isTrue);
+        expect(
+          await _hasColumn(db, 'swimmer_profiles', 'preferred_strokes_json'),
+          isTrue,
+        );
+        expect(
+          await _hasColumn(db, 'swimmer_profiles', 'primary_events'),
+          isTrue,
+        );
+        expect(await _hasColumn(db, 'swimmer_profiles', 'club_name'), isTrue);
+        expect(await _hasColumn(db, 'swimmer_profiles', 'goals'), isTrue);
 
         final sessions = await db.query('swim_sessions');
         final pbs = await db.query('personal_bests');
@@ -191,6 +202,25 @@ Future<void> _createOldSchema(Database db, int version) async {
     await db.execute(
       'ALTER TABLE sync_queue ADD COLUMN sequence INTEGER NOT NULL DEFAULT 0',
     );
+  }
+  if (version >= 8) {
+    await db.execute('''
+      CREATE TABLE race_times (
+        id TEXT PRIMARY KEY,
+        profile_id TEXT NOT NULL,
+        race_name TEXT NOT NULL,
+        event_date INTEGER NOT NULL,
+        distance INTEGER NOT NULL,
+        stroke TEXT NOT NULL,
+        course_type TEXT NOT NULL,
+        time_centiseconds INTEGER NOT NULL,
+        notes TEXT,
+        placement INTEGER,
+        location TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    ''');
   }
 }
 

@@ -99,6 +99,36 @@ void main() {
         contains(kDefaultProfileId),
       );
     });
+
+    test('persists expanded swimmer profile details', () async {
+      final profiles = ProfileDao(appDb);
+      final now = DateTime.utc(2024, 5, 1);
+
+      await profiles.insert(
+        SwimmerProfile(
+          id: 'profile-details',
+          displayName: 'Sophie',
+          preferredPoolLengthMeters: 50,
+          photoUri: '/tmp/sophie.jpg',
+          preferredStrokes: const ['Freestyle', 'Butterfly'],
+          primaryEvents: '50m free',
+          clubName: 'Metro Swim',
+          goals: 'State final',
+          notes: 'Sprint focus',
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+
+      final saved = (await profiles.getAll())
+          .firstWhere((profile) => profile.id == 'profile-details');
+      expect(saved.photoUri, '/tmp/sophie.jpg');
+      expect(saved.preferredStrokes, ['Freestyle', 'Butterfly']);
+      expect(saved.primaryEvents, '50m free');
+      expect(saved.clubName, 'Metro Swim');
+      expect(saved.goals, 'State final');
+      expect(saved.notes, 'Sprint focus');
+    });
   });
 }
 
