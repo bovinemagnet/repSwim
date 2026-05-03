@@ -168,6 +168,7 @@ void main() {
 
       await tester.tap(find.byType(CheckboxListTile));
       await tester.pump();
+      await _scrollTo(tester, find.widgetWithText(FilledButton, 'Start'));
       final enabledStart = tester.widget<FilledButton>(
         find.widgetWithText(FilledButton, 'Start'),
       );
@@ -204,6 +205,54 @@ void main() {
 
       verify(() => harness.dao.insertTempoTemplate(any())).called(1);
       expect(find.text('Saved Threshold tempo.'), findsOneWidget);
+    });
+
+    testWidgets('logs and saves a USRPT race pace result', (tester) async {
+      final harness = await _pumpTempoTrainer(tester);
+
+      await _scrollTo(tester, find.widgetWithText(TextField, 'Fail rule'));
+      await tester.enterText(find.widgetWithText(TextField, 'Fail rule'), '2');
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Apply USRPT'));
+      await tester.pump();
+
+      expect(find.text('25m 00:15.00'), findsOneWidget);
+      expect(find.text('Applied USRPT race pace.'), findsOneWidget);
+
+      await tester.pump(const Duration(seconds: 4));
+      await tester.tap(find.widgetWithText(FilledButton, 'Pass Rep'));
+      await tester.pump();
+      expect(find.text('1P'), findsOneWidget);
+      expect(find.textContaining('Rest 0:20'), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Rest -5s'));
+      await tester.pump();
+      expect(find.textContaining('Rest 0:15'), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Fail Rep'));
+      await tester.pump();
+      await tester.tap(find.widgetWithText(FilledButton, 'Fail Rep'));
+      await tester.pump();
+
+      expect(find.text('2F'), findsOneWidget);
+      expect(find.text('3F'), findsOneWidget);
+      expect(find.text('Fail rule reached after 2 fails.'), findsOneWidget);
+
+      await tester.enterText(
+        find.widgetWithText(TextField, 'USRPT notes'),
+        'Held first repeat',
+      );
+      await tester.tap(find.widgetWithText(FilledButton, 'Save USRPT'));
+      await tester.pump();
+
+      final captured = verify(
+        () => harness.dao.insertTempoSessionResult(captureAny()),
+      ).captured.single as TempoSessionResult;
+      expect(captured.mode, TempoMode.lapPace);
+      expect(captured.targetDistanceMeters, 25);
+      expect(captured.targetTime, const Duration(seconds: 15));
+      expect(captured.strokeCounts, [1, 0, 0]);
+      expect(captured.notes, contains('outcomes 1:P,2:F,3:F'));
+      expect(captured.notes, contains('Held first repeat'));
     });
 
     testWidgets('creates a CSS lap pace template from 200m and 400m times',

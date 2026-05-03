@@ -162,6 +162,7 @@ Map<String, Object?> tempoSessionResultPayload(TempoSessionResult result) {
     'strokeCounts': result.strokeCounts,
     'rpe': result.rpe,
     'notes': result.notes,
+    'metadata': result.metadata,
   };
 }
 

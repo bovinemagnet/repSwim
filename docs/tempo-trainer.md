@@ -67,6 +67,27 @@ The screen exposes these inputs:
 All numeric configuration values must be positive. Invalid setup values show
 `Enter valid tempo values.` and are not applied.
 
+## USRPT Race Pace
+
+The USRPT Race Pace panel builds repeat targets from an event distance and event
+target time. It accepts:
+
+- `Event m`: race distance.
+- `Event sec`: race target time in seconds.
+- `Repeat m`: repetition distance.
+- `Rest sec`: rest between repetitions.
+- `Fail rule`: number of failed repetitions that stops the set.
+
+The panel calculates the repetition target split from the event pace, shows the
+rest countdown, and records each repetition as pass or fail. When the fail rule
+is reached, pass/fail logging stops and the panel shows a fail-rule warning.
+Applying USRPT also configures the live Lap Pace cue interval for the repeat
+split, using the current sound, vibration, visual flash, and voice settings.
+
+USRPT results save through the same offline tempo result store. Saved USRPT
+results are profile-scoped, use Lap Pace mode, store pass/fail outcomes in the
+saved result notes, and include structured metadata in the queued sync payload.
+
 ## CSS Pace Builder
 
 The CSS Pace Builder accepts recent 200m and 400m times in seconds. It calculates
@@ -217,11 +238,9 @@ Current coverage includes:
 The MVP intentionally does not include:
 
 - Stroke-rate ramp tests.
-- USRPT race-pace presets and fail counters.
 - Per-rep or per-segment race modelling.
 - Wearable, Bluetooth, or external device integration.
 
 Follow-up issues:
 
-- #18 USRPT race-pace preset with fail counter.
 - #19 Stroke-rate ramp test preset.

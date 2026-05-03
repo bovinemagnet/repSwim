@@ -34,6 +34,7 @@ class TempoSessionResult {
     this.completedAt,
     this.rpe,
     this.notes,
+    this.metadata = const <String, Object?>{},
   });
 
   final String id;
@@ -50,4 +51,5 @@ class TempoSessionResult {
   final List<int> strokeCounts;
   final int? rpe;
   final String? notes;
+  final Map<String, Object?> metadata;
 }

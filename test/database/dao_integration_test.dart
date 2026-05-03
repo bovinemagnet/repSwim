@@ -256,11 +256,33 @@ void main() {
           strokeCounts: const [18],
         ),
       );
+      await dao.insertTempoSessionResult(
+        TempoSessionResult(
+          id: 'usrpt-result-1',
+          profileId: 'profile-1',
+          mode: TempoMode.lapPace,
+          startedAt: now.add(const Duration(minutes: 5)),
+          targetDistanceMeters: 25,
+          poolLengthMeters: 25,
+          targetTime: const Duration(seconds: 15),
+          targetStrokeRate: 0,
+          actualSplits: const [
+            Duration(seconds: 15),
+            Duration(seconds: 15),
+          ],
+          strokeCounts: const [1, 0],
+          notes: 'USRPT 100m target; outcomes 1:P,2:F',
+        ),
+      );
       final results = await dao.getTempoSessionResults('profile-1');
-      expect(results.single.templateId, template.id);
-      expect(results.single.actualSplits.last.inMilliseconds, 22400);
-      expect(results.single.strokeCounts, [18, 19]);
-      expect(results.single.notes, 'Held rhythm');
+      expect(results, hasLength(2));
+      expect(results.first.id, 'usrpt-result-1');
+      expect(results.first.strokeCounts, [1, 0]);
+      expect(results.first.notes, contains('outcomes 1:P,2:F'));
+      expect(results.last.templateId, template.id);
+      expect(results.last.actualSplits.last.inMilliseconds, 22400);
+      expect(results.last.strokeCounts, [18, 19]);
+      expect(results.last.notes, 'Held rhythm');
       expect(await dao.getTempoSessionResults('profile-2'), hasLength(1));
 
       await dao.deleteTempoSessionResult('tempo-result-1', 'profile-1');

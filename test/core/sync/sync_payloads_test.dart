@@ -223,6 +223,7 @@ void main() {
         'strokeCounts': [18, 19],
         'rpe': 7,
         'notes': 'Held rhythm',
+        'metadata': <String, Object?>{},
       });
     });
 
