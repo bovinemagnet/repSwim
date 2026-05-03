@@ -241,6 +241,17 @@ class TempoSessionResultsNotifier
     return result;
   }
 
+  Future<void> deleteResult(String id) async {
+    await _dao.deleteTempoSessionResult(id, _profileId);
+    await _queueChange(
+      entityType: 'tempo_session_result',
+      entityId: id,
+      operation: SyncOperation.delete,
+      payload: deletedEntityPayload(id: id, profileId: _profileId),
+    );
+    await load();
+  }
+
   Future<void> _queueChange({
     required String entityType,
     required String entityId,

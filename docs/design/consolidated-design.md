@@ -89,8 +89,10 @@ lib/
     home/
     pb/
     profiles/
+    race/
     stopwatch/
     swim/
+    tempo/
   app.dart
   main.dart
 ```
@@ -169,6 +171,64 @@ Unique rule:
 ```text
 unique(profile_id, stroke, distance)
 ```
+
+### Race Times And Qualification Standards
+
+```text
+race_times
+- id
+- profile_id
+- race_name
+- event_date
+- distance
+- stroke
+- course_type
+- time_centiseconds
+- notes
+- placement
+- location
+- created_at
+- updated_at
+
+qualification_standards
+- id
+- profile_id
+- age
+- distance
+- stroke
+- course_type
+- gold_centiseconds
+- silver_centiseconds
+- bronze_centiseconds
+- created_at
+- updated_at
+
+meet_qualification_standards
+- id
+- source_name
+- sex
+- age_group_label
+- min_age
+- max_age
+- is_open
+- distance
+- stroke
+- course_type
+- qualifying_centiseconds
+- mc_points
+- is_relay
+- relay_event
+- valid_from
+- competition_start
+- competition_end
+```
+
+Manual qualification standards are profile-scoped medal thresholds by age,
+event, and course. The Qualification Standards screen includes an age selector
+and a gold/silver/bronze table for manual standards. Imported meet standards are
+separate local reference data and currently include the 2026/27 Uncloud
+Victorian Metro SC Championships source. See
+[Race Qualification Standards](../race-qualification-standards.md).
 
 ### Dryland
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/utils/duration_utils.dart';
 import '../../domain/entities/tempo_mode.dart';
@@ -347,7 +348,16 @@ class _TempoTrainerScreenState extends ConsumerState<TempoTrainerScreen> {
     });
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Tempo Trainer')),
+      appBar: AppBar(
+        title: const Text('Tempo Trainer'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            tooltip: 'Tempo history',
+            onPressed: () => context.push('/tempo/results'),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(16),

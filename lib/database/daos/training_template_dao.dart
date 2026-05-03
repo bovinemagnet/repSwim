@@ -212,6 +212,15 @@ class TrainingTemplateDao {
     return rows.map(_tempoSessionResultFromRow).toList();
   }
 
+  Future<void> deleteTempoSessionResult(String id, String profileId) async {
+    final db = await _db.database;
+    await db.delete(
+      'tempo_session_results',
+      where: 'id = ? AND profile_id = ?',
+      whereArgs: [id, profileId],
+    );
+  }
+
   Future<List<DrylandRoutineExerciseTemplate>> getDrylandRoutineExercises(
     String templateId,
     String profileId,

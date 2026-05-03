@@ -101,8 +101,16 @@ Cue output settings are configured with chips:
 The cue player is implemented behind `TempoCuePlayer` so tests can inject a fake
 cue player without calling platform channels.
 
-Current timing uses Flutter timers. This is adequate for the MVP but is not a
-specialized low-drift audio scheduler.
+Cue timing is implemented behind `TempoCueScheduler`. The scheduler uses a
+stopwatch-backed, one-shot timer loop that schedules each cue against its
+absolute target elapsed time. If a cue fires late, the next delay is shortened to
+return to the configured tempo instead of carrying the delay forward like
+`Timer.periodic`.
+
+Sound, vibration, visual flash, and spoken cues remain controlled by
+`TempoCueSettings` and `TempoCuePlayer`. The current implementation keeps using
+Flutter platform sound, haptic, and semantics APIs for cue output rather than
+adding a native audio engine package.
 
 ## Safety Behavior
 
@@ -163,10 +171,15 @@ At least one actual split is required to save a result. RPE must be blank or in
 the range `1..10`.
 
 Saved results are stored in SQLite in `tempo_session_results` and are scoped to
-the current swimmer profile. Result creates are queued for sync.
+the current swimmer profile. Result creates and deletes are queued for sync.
 
-The MVP stores results and shows a count of saved tempo sessions. It does not
-yet include a dedicated history or detail screen for viewing saved results.
+The `History` action in the Tempo Trainer app bar opens the saved result list.
+Tempo History shows saved results newest first, and each row opens a detail view
+with target pace, split errors, stroke counts, RPE, and notes. Saved results can
+be deleted from the detail view after confirmation.
+
+History and detail views do not play live tempo cues, so they do not introduce
+additional audio, vibration, or visual flash behavior.
 
 ## CSV Export
 
@@ -198,11 +211,11 @@ alongside the existing interval and dryland template storage.
 Current coverage includes:
 
 - Unit tests for tempo conversions, split comparison, breath safety thresholds,
-  and CSV export.
+  CSV export, and low-drift cue scheduling.
 - Provider tests for cue scheduling, template save/delete, result save, and sync
   queue behavior.
 - Widget tests for controls, safety acknowledgement, validation, template save,
-  result save, and CSV copy.
+  result save, history, detail, delete, and CSV copy.
 - DAO integration tests for offline persistence and profile isolation.
 - Migration tests for upgrading older database versions to the tempo schema.
 
@@ -210,8 +223,6 @@ Current coverage includes:
 
 The MVP intentionally does not include:
 
-- Low-drift audio scheduling.
-- Saved session history/detail screens.
 - CSS pace preset generation.
 - Stroke-rate ramp tests.
 - Per-rep or per-segment race modelling.
@@ -219,7 +230,5 @@ The MVP intentionally does not include:
 
 Follow-up issues:
 
-- #15 Tempo session history/detail views.
-- #16 Low-drift audio scheduling.
 - #17 CSS pace preset builder.
 - #19 Stroke-rate ramp test preset.
