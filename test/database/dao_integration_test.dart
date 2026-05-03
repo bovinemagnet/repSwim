@@ -256,11 +256,35 @@ void main() {
           strokeCounts: const [18],
         ),
       );
+      await dao.insertTempoSessionResult(
+        TempoSessionResult(
+          id: 'ramp-result-1',
+          profileId: 'profile-1',
+          mode: TempoMode.strokeRate,
+          startedAt: now.add(const Duration(minutes: 5)),
+          targetDistanceMeters: 25,
+          poolLengthMeters: 25,
+          targetTime: const Duration(seconds: 18),
+          targetStrokeRate: 60,
+          actualSplits: const [
+            Duration(seconds: 18),
+            Duration(seconds: 17),
+          ],
+          strokeCounts: const [18, 20],
+          rpe: 6,
+          notes: 'Stroke-rate ramp; rep 1: 60.0 spm',
+        ),
+      );
       final results = await dao.getTempoSessionResults('profile-1');
-      expect(results.single.templateId, template.id);
-      expect(results.single.actualSplits.last.inMilliseconds, 22400);
-      expect(results.single.strokeCounts, [18, 19]);
-      expect(results.single.notes, 'Held rhythm');
+      expect(results, hasLength(2));
+      expect(results.first.id, 'ramp-result-1');
+      expect(results.first.strokeCounts, [18, 20]);
+      expect(results.first.rpe, 6);
+      expect(results.first.notes, contains('Stroke-rate ramp'));
+      expect(results.last.templateId, template.id);
+      expect(results.last.actualSplits.last.inMilliseconds, 22400);
+      expect(results.last.strokeCounts, [18, 19]);
+      expect(results.last.notes, 'Held rhythm');
       expect(await dao.getTempoSessionResults('profile-2'), hasLength(1));
     });
 

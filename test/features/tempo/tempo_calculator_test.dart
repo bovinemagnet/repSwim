@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rep_swim/features/tempo/domain/services/stroke_rate_ramp_calculator.dart';
 import 'package:rep_swim/features/tempo/domain/services/tempo_calculator.dart';
 
 void main() {
@@ -54,6 +55,52 @@ void main() {
     test('flags high breath intervals for safety acknowledgement', () {
       expect(calculator.requiresBreathSafetyWarning(4), isFalse);
       expect(calculator.requiresBreathSafetyWarning(5), isTrue);
+    });
+  });
+
+  group('StrokeRateRampCalculator', () {
+    const calculator = StrokeRateRampCalculator();
+
+    test('generates stroke-rate targets per repetition', () {
+      final protocol = calculator.generate(
+        startStrokeRate: 60,
+        increment: 4,
+        repeatDistanceMeters: 25,
+        reps: 4,
+        restDuration: const Duration(seconds: 20),
+      );
+
+      expect(protocol.targets.map((target) => target.strokeRate), [
+        60,
+        64,
+        68,
+        72,
+      ]);
+      expect(protocol.targets.last.repeatDistanceMeters, 25);
+      expect(protocol.targets.last.restDuration, const Duration(seconds: 20));
+    });
+
+    test('rejects impossible ramp protocol values', () {
+      expect(
+        () => calculator.generate(
+          startStrokeRate: 0,
+          increment: 4,
+          repeatDistanceMeters: 25,
+          reps: 4,
+          restDuration: const Duration(seconds: 20),
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => calculator.generate(
+          startStrokeRate: 60,
+          increment: -1,
+          repeatDistanceMeters: 25,
+          reps: 4,
+          restDuration: const Duration(seconds: 20),
+        ),
+        throwsArgumentError,
+      );
     });
   });
 }

@@ -67,6 +67,26 @@ The screen exposes these inputs:
 All numeric configuration values must be positive. Invalid setup values show
 `Enter valid tempo values.` and are not applied.
 
+## Stroke-Rate Ramp
+
+The Stroke-Rate Ramp panel helps test cadence efficiency across repeated swims.
+It accepts:
+
+- `Start spm`: first repetition stroke-rate target.
+- `Increment spm`: stroke-rate increase per repetition.
+- `Ramp repeat m`: distance for each repetition.
+- `Ramp reps`: number of repetitions.
+- `Ramp rest sec`: rest between repetitions.
+
+Applying the ramp configures the live Stroke Rate cue to the current repetition
+target. Each logged repetition captures split time, stroke count, optional RPE,
+and optional notes. The panel shows pace, stroke rate, and distance per stroke,
+plus a simple summary for fastest pace and best distance per stroke.
+
+Ramp results save through the offline tempo result store. Saved ramp results are
+profile-scoped, use Stroke Rate mode, store actual splits and stroke counts per
+rep, and include the ramp protocol plus per-rep details in notes.
+
 ## Cue Outputs
 
 Cue output settings are configured with chips:
@@ -192,7 +212,6 @@ The MVP intentionally does not include:
 - Low-drift audio scheduling.
 - Saved session history/detail screens.
 - CSS pace preset generation.
-- Stroke-rate ramp tests.
 - USRPT race-pace presets and fail counters.
 - Per-rep or per-segment race modelling.
 - Wearable, Bluetooth, or external device integration.
@@ -203,4 +222,3 @@ Follow-up issues:
 - #16 Low-drift audio scheduling.
 - #17 CSS pace preset builder.
 - #18 USRPT race-pace preset with fail counter.
-- #19 Stroke-rate ramp test preset.
