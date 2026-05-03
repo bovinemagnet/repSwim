@@ -8,8 +8,10 @@ import '../../../../database/daos/sync_queue_dao.dart';
 import '../../../../database/daos/training_template_dao.dart';
 import '../../../profiles/presentation/providers/profile_providers.dart';
 import '../../../templates/presentation/providers/training_template_providers.dart';
+import '../../domain/entities/tempo_mode.dart';
 import '../../domain/entities/tempo_session_result.dart';
 import '../../domain/entities/tempo_template.dart';
+import '../../domain/services/usrpt_calculator.dart';
 import 'tempo_trainer_provider.dart';
 
 const _uuid = Uuid();
@@ -159,6 +161,74 @@ class TempoSessionResultsNotifier
       strokeCounts: strokeCounts,
       rpe: rpe,
       notes: (notes?.trim().isEmpty ?? true) ? null : notes!.trim(),
+    );
+    await _dao.insertTempoSessionResult(result);
+    await _queueChange(
+      entityType: 'tempo_session_result',
+      entityId: result.id,
+      operation: SyncOperation.create,
+      payload: tempoSessionResultPayload(result),
+    );
+    await load();
+    return result;
+  }
+
+  Future<TempoSessionResult> saveUsrptResult({
+    required UsrptRacePacePreset preset,
+    required List<UsrptRepOutcome> outcomes,
+    String? notes,
+  }) async {
+    final now = DateTime.now().toUtc();
+    final passCount = outcomes.where((outcome) => outcome.passed).length;
+    final failCount = outcomes.length - passCount;
+    final outcomeLabels = [
+      for (final outcome in outcomes) '${outcome.index}:${outcome.label}',
+    ];
+    final summary = 'USRPT ${preset.eventDistanceMeters}m target '
+        '${preset.eventTargetTime.inMilliseconds}ms; '
+        'repeat ${preset.repetitionDistanceMeters}m target '
+        '${preset.repetitionTargetTime.inMilliseconds}ms; '
+        'rest ${preset.restDuration.inSeconds}s; '
+        'fail rule ${preset.failLimit}; outcomes ${outcomeLabels.join(',')}';
+    final trimmedNotes = notes?.trim();
+    final result = TempoSessionResult(
+      id: _uuid.v4(),
+      profileId: _profileId,
+      mode: TempoMode.lapPace,
+      startedAt: now,
+      completedAt: now,
+      targetDistanceMeters: preset.repetitionDistanceMeters,
+      poolLengthMeters: preset.repetitionDistanceMeters,
+      targetTime: preset.repetitionTargetTime,
+      targetStrokeRate: 0,
+      actualSplits: [
+        for (final _ in outcomes) preset.repetitionTargetTime,
+      ],
+      strokeCounts: [
+        for (final outcome in outcomes) outcome.passed ? 1 : 0,
+      ],
+      notes: (trimmedNotes == null || trimmedNotes.isEmpty)
+          ? summary
+          : '$summary\n$trimmedNotes',
+      metadata: {
+        'type': 'usrpt',
+        'eventDistanceMeters': preset.eventDistanceMeters,
+        'eventTargetTimeMilliseconds': preset.eventTargetTime.inMilliseconds,
+        'repetitionDistanceMeters': preset.repetitionDistanceMeters,
+        'repetitionTargetTimeMilliseconds':
+            preset.repetitionTargetTime.inMilliseconds,
+        'restSeconds': preset.restDuration.inSeconds,
+        'failLimit': preset.failLimit,
+        'outcomes': [
+          for (final outcome in outcomes)
+            {
+              'index': outcome.index,
+              'passed': outcome.passed,
+            },
+        ],
+        'passCount': passCount,
+        'failCount': failCount,
+      },
     );
     await _dao.insertTempoSessionResult(result);
     await _queueChange(
