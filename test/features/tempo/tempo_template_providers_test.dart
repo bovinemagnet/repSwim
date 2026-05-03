@@ -356,5 +356,3 @@ void main() {
       verify(() => dao.getTempoSessionResults('profile-1'))
           .called(greaterThanOrEqualTo(2));
     });
-  });
-}

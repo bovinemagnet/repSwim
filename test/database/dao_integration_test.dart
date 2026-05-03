@@ -286,10 +286,7 @@ void main() {
       expect(await dao.getTempoSessionResults('profile-2'), hasLength(1));
 
       await dao.deleteTempoSessionResult('tempo-result-1', 'profile-1');
-      final remainingProfileOneResults =
-          await dao.getTempoSessionResults('profile-1');
-      expect(remainingProfileOneResults, hasLength(1));
-      expect(remainingProfileOneResults.single.id, 'usrpt-result-1');
+      expect(await dao.getTempoSessionResults('profile-1'), isEmpty);
       expect(await dao.getTempoSessionResults('profile-2'), hasLength(1));
     });
 

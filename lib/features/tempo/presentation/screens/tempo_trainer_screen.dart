@@ -513,6 +513,16 @@ class _TempoTrainerScreenState extends ConsumerState<TempoTrainerScreen> {
                   ref.read(usrptSessionProvider.notifier).tickRest(elapsed),
             ),
             const SizedBox(height: 16),
+            _CssPaceBuilderPanel(
+              enabled: !state.isRunning,
+              css200Controller: _css200Controller,
+              css400Controller: _css400Controller,
+              nameController: _cssNameController,
+              preset: cssPreset,
+              onChanged: () => setState(() {}),
+              onCreate: () => _createCssTemplate(state),
+            ),
+            const SizedBox(height: 16),
             _RunPanel(
               state: state,
               onStartPause: state.isRunning ? notifier.pause : notifier.start,

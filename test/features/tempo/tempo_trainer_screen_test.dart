@@ -160,6 +160,12 @@ void main() {
       await tester.pump();
 
       expect(find.text('Breath safety acknowledged'), findsOneWidget);
+      await _scrollTo(tester, find.widgetWithText(FilledButton, 'Start'));
+      final startButton = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Start'),
+      );
+      expect(startButton.onPressed, isNull);
+
       await tester.tap(find.byType(CheckboxListTile));
       await tester.pump();
       await _scrollTo(tester, find.widgetWithText(FilledButton, 'Start'));
