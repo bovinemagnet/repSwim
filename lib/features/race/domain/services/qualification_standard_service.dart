@@ -21,6 +21,49 @@ bool hasValidQualificationOrder(QualificationStandard standard) {
       standard.silverTime <= standard.bronzeTime;
 }
 
+List<QualificationStandard> sortQualificationStandards(
+  List<QualificationStandard> standards,
+) {
+  final sorted = [...standards];
+  sorted.sort((a, b) {
+    final ageCompare = a.age.compareTo(b.age);
+    if (ageCompare != 0) return ageCompare;
+    final distanceCompare = a.distance.compareTo(b.distance);
+    if (distanceCompare != 0) return distanceCompare;
+    final strokeCompare = a.stroke.toLowerCase().compareTo(
+          b.stroke.toLowerCase(),
+        );
+    if (strokeCompare != 0) return strokeCompare;
+    return a.course.index.compareTo(b.course.index);
+  });
+  return sorted;
+}
+
+List<int> qualificationAges(List<QualificationStandard> standards) {
+  final ages = standards.map((standard) => standard.age).toSet().toList()
+    ..sort();
+  return ages;
+}
+
+Map<int, List<QualificationStandard>> qualificationStandardsByAge(
+  List<QualificationStandard> standards,
+) {
+  final grouped = <int, List<QualificationStandard>>{};
+  for (final standard in sortQualificationStandards(standards)) {
+    grouped.putIfAbsent(standard.age, () => []).add(standard);
+  }
+  return grouped;
+}
+
+List<QualificationStandard> qualificationStandardsForAge(
+  List<QualificationStandard> standards,
+  int age,
+) {
+  return sortQualificationStandards(
+    standards.where((standard) => standard.age == age).toList(),
+  );
+}
+
 QualificationTier? qualificationTierForTime(
   QualificationStandard standard,
   Duration raceTime,
