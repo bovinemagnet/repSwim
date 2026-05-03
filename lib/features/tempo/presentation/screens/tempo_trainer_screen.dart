@@ -10,6 +10,7 @@ import '../../domain/entities/tempo_template.dart';
 import '../../domain/services/css_pace_calculator.dart';
 import '../../domain/services/tempo_calculator.dart';
 import '../../domain/services/tempo_csv_exporter.dart';
+import '../providers/stroke_rate_ramp_provider.dart';
 import '../providers/tempo_template_providers.dart';
 import '../providers/tempo_trainer_provider.dart';
 import '../providers/usrpt_session_provider.dart';
@@ -28,6 +29,15 @@ class _TempoTrainerScreenState extends ConsumerState<TempoTrainerScreen> {
   late final TextEditingController _strokeRateController;
   late final TextEditingController _breathEveryController;
   late final TextEditingController _accentEveryController;
+  late final TextEditingController _rampStartController;
+  late final TextEditingController _rampIncrementController;
+  late final TextEditingController _rampRepeatDistanceController;
+  late final TextEditingController _rampRepsController;
+  late final TextEditingController _rampRestController;
+  late final TextEditingController _rampSplitController;
+  late final TextEditingController _rampStrokeCountController;
+  late final TextEditingController _rampRpeController;
+  late final TextEditingController _rampNotesController;
   late final TextEditingController _usrptEventDistanceController;
   late final TextEditingController _usrptTargetTimeController;
   late final TextEditingController _usrptRepeatDistanceController;
@@ -58,6 +68,20 @@ class _TempoTrainerScreenState extends ConsumerState<TempoTrainerScreen> {
         TextEditingController(text: state.breathEveryStrokes.toString());
     _accentEveryController =
         TextEditingController(text: state.cueSettings.accentEvery.toString());
+    final ramp = ref.read(strokeRateRampProvider);
+    _rampStartController =
+        TextEditingController(text: ramp.startStrokeRate.toStringAsFixed(0));
+    _rampIncrementController =
+        TextEditingController(text: ramp.increment.toStringAsFixed(0));
+    _rampRepeatDistanceController =
+        TextEditingController(text: ramp.repeatDistanceMeters.toString());
+    _rampRepsController = TextEditingController(text: ramp.reps.toString());
+    _rampRestController =
+        TextEditingController(text: _secondsText(ramp.restDuration));
+    _rampSplitController = TextEditingController();
+    _rampStrokeCountController = TextEditingController();
+    _rampRpeController = TextEditingController();
+    _rampNotesController = TextEditingController();
     final usrpt = ref.read(usrptSessionProvider);
     _usrptEventDistanceController =
         TextEditingController(text: usrpt.eventDistanceMeters.toString());
@@ -87,6 +111,15 @@ class _TempoTrainerScreenState extends ConsumerState<TempoTrainerScreen> {
     _strokeRateController.dispose();
     _breathEveryController.dispose();
     _accentEveryController.dispose();
+    _rampStartController.dispose();
+    _rampIncrementController.dispose();
+    _rampRepeatDistanceController.dispose();
+    _rampRepsController.dispose();
+    _rampRestController.dispose();
+    _rampSplitController.dispose();
+    _rampStrokeCountController.dispose();
+    _rampRpeController.dispose();
+    _rampNotesController.dispose();
     _usrptEventDistanceController.dispose();
     _usrptTargetTimeController.dispose();
     _usrptRepeatDistanceController.dispose();
@@ -168,6 +201,102 @@ class _TempoTrainerScreenState extends ConsumerState<TempoTrainerScreen> {
         .saveFromState(name, ref.read(tempoTrainerProvider));
     if (!mounted) return;
     _showSnack('Saved ${saved.name}.');
+  }
+
+  void _applyRampConfig() {
+    final startRate = double.tryParse(_rampStartController.text);
+    final increment = double.tryParse(_rampIncrementController.text);
+    final repeatDistance = int.tryParse(_rampRepeatDistanceController.text);
+    final reps = int.tryParse(_rampRepsController.text);
+    final restSeconds = double.tryParse(_rampRestController.text);
+
+    if (startRate == null ||
+        increment == null ||
+        repeatDistance == null ||
+        reps == null ||
+        restSeconds == null) {
+      _showSnack('Enter valid ramp values.');
+      return;
+    }
+
+    try {
+      ref.read(strokeRateRampProvider.notifier).configure(
+            startStrokeRate: startRate,
+            increment: increment,
+            repeatDistanceMeters: repeatDistance,
+            reps: reps,
+            restDuration: Duration(milliseconds: (restSeconds * 1000).round()),
+          );
+    } on ArgumentError {
+      _showSnack('Enter possible ramp values.');
+      return;
+    }
+    _configureTempoForRampTarget(ref.read(strokeRateRampProvider));
+    _showSnack('Applied stroke-rate ramp.');
+    FocusScope.of(context).unfocus();
+  }
+
+  void _configureTempoForRampTarget(StrokeRateRampState ramp) {
+    final tempoState = ref.read(tempoTrainerProvider);
+    ref.read(tempoTrainerProvider.notifier).configure(
+          mode: TempoMode.strokeRate,
+          poolLengthMeters: tempoState.poolLengthMeters,
+          targetDistanceMeters: ramp.repeatDistanceMeters,
+          targetTime: tempoState.targetTime,
+          strokeRate: ramp.currentTarget.strokeRate,
+          breathEveryStrokes: tempoState.breathEveryStrokes,
+          cueSettings: tempoState.cueSettings,
+          safetyWarningAcknowledged: tempoState.safetyWarningAcknowledged,
+        );
+    _syncControllers(ref.read(tempoTrainerProvider));
+  }
+
+  void _logRampRep() {
+    final splitSeconds = double.tryParse(_rampSplitController.text);
+    final strokeCount = int.tryParse(_rampStrokeCountController.text);
+    final rpe = _rampRpeController.text.trim().isEmpty
+        ? null
+        : int.tryParse(_rampRpeController.text);
+    if (splitSeconds == null || strokeCount == null) {
+      _showSnack('Enter ramp split and stroke count.');
+      return;
+    }
+
+    try {
+      ref.read(strokeRateRampProvider.notifier).logRep(
+            split: Duration(milliseconds: (splitSeconds * 1000).round()),
+            strokeCount: strokeCount,
+            rpe: rpe,
+            notes: _rampNotesController.text,
+          );
+    } on ArgumentError {
+      _showSnack('Enter possible ramp rep values.');
+      return;
+    }
+    final ramp = ref.read(strokeRateRampProvider);
+    _rampSplitController.clear();
+    _rampStrokeCountController.clear();
+    _rampRpeController.clear();
+    _rampNotesController.clear();
+    if (!ramp.isComplete) {
+      _configureTempoForRampTarget(ramp);
+    }
+    _showSnack('Logged ramp rep ${ramp.logs.length}.');
+  }
+
+  Future<void> _saveRampResult(StrokeRateRampState ramp) async {
+    if (ramp.logs.isEmpty) {
+      _showSnack('Log at least one ramp rep.');
+      return;
+    }
+    final result = await ref
+        .read(tempoSessionResultsProvider.notifier)
+        .saveStrokeRateRampResult(
+          protocol: ramp.protocol,
+          logs: ramp.logs,
+        );
+    if (!mounted) return;
+    _showSnack('Saved ramp result with ${result.actualSplits.length} reps.');
   }
 
   void _applyUsrptConfig() {
@@ -404,6 +533,7 @@ class _TempoTrainerScreenState extends ConsumerState<TempoTrainerScreen> {
     final notifier = ref.read(tempoTrainerProvider.notifier);
     final templatesAsync = ref.watch(tempoTemplatesProvider);
     final resultsAsync = ref.watch(tempoSessionResultsProvider);
+    final ramp = ref.watch(strokeRateRampProvider);
     final usrpt = ref.watch(usrptSessionProvider);
     final cssPreset = _currentCssPreset();
 
@@ -484,6 +614,25 @@ class _TempoTrainerScreenState extends ConsumerState<TempoTrainerScreen> {
               },
             ),
             const SizedBox(height: 16),
+            _StrokeRateRampPanel(
+              state: ramp,
+              enabled: !state.isRunning,
+              startController: _rampStartController,
+              incrementController: _rampIncrementController,
+              repeatDistanceController: _rampRepeatDistanceController,
+              repsController: _rampRepsController,
+              restController: _rampRestController,
+              splitController: _rampSplitController,
+              strokeCountController: _rampStrokeCountController,
+              rpeController: _rampRpeController,
+              notesController: _rampNotesController,
+              onApply: _applyRampConfig,
+              onLogRep: _logRampRep,
+              onSave: () => _saveRampResult(ramp),
+              onReset: () =>
+                  ref.read(strokeRateRampProvider.notifier).resetLogs(),
+            ),
+            const SizedBox(height: 16),
             _CssPaceBuilderPanel(
               enabled: !state.isRunning,
               css200Controller: _css200Controller,
@@ -511,16 +660,6 @@ class _TempoTrainerScreenState extends ConsumerState<TempoTrainerScreen> {
                   ref.read(usrptSessionProvider.notifier).resetOutcomes(),
               onRestTick: (elapsed) =>
                   ref.read(usrptSessionProvider.notifier).tickRest(elapsed),
-            ),
-            const SizedBox(height: 16),
-            _CssPaceBuilderPanel(
-              enabled: !state.isRunning,
-              css200Controller: _css200Controller,
-              css400Controller: _css400Controller,
-              nameController: _cssNameController,
-              preset: cssPreset,
-              onChanged: () => setState(() {}),
-              onCreate: () => _createCssTemplate(state),
             ),
             const SizedBox(height: 16),
             _RunPanel(
@@ -923,28 +1062,44 @@ class _UsrptPanel extends StatelessWidget {
   }
 }
 
-class _CssPaceBuilderPanel extends StatelessWidget {
-  const _CssPaceBuilderPanel({
+class _StrokeRateRampPanel extends StatelessWidget {
+  const _StrokeRateRampPanel({
+    required this.state,
     required this.enabled,
-    required this.css200Controller,
-    required this.css400Controller,
-    required this.nameController,
-    required this.preset,
-    required this.onChanged,
-    required this.onCreate,
+    required this.startController,
+    required this.incrementController,
+    required this.repeatDistanceController,
+    required this.repsController,
+    required this.restController,
+    required this.splitController,
+    required this.strokeCountController,
+    required this.rpeController,
+    required this.notesController,
+    required this.onApply,
+    required this.onLogRep,
+    required this.onSave,
+    required this.onReset,
   });
 
+  final StrokeRateRampState state;
   final bool enabled;
-  final TextEditingController css200Controller;
-  final TextEditingController css400Controller;
-  final TextEditingController nameController;
-  final CssPacePreset? preset;
-  final VoidCallback onChanged;
-  final VoidCallback onCreate;
+  final TextEditingController startController;
+  final TextEditingController incrementController;
+  final TextEditingController repeatDistanceController;
+  final TextEditingController repsController;
+  final TextEditingController restController;
+  final TextEditingController splitController;
+  final TextEditingController strokeCountController;
+  final TextEditingController rpeController;
+  final TextEditingController notesController;
+  final VoidCallback onApply;
+  final VoidCallback onLogRep;
+  final VoidCallback onSave;
+  final VoidCallback onReset;
 
   @override
   Widget build(BuildContext context) {
-    final currentPreset = preset;
+    final current = state.currentTarget;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -952,7 +1107,7 @@ class _CssPaceBuilderPanel extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'CSS Pace Builder',
+              'Stroke-Rate Ramp',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 12),
@@ -961,60 +1116,128 @@ class _CssPaceBuilderPanel extends StatelessWidget {
               runSpacing: 12,
               children: [
                 _NumberField(
-                  controller: css200Controller,
-                  label: '200m sec',
+                  controller: startController,
+                  label: 'Start spm',
                   enabled: enabled,
                   decimal: true,
-                  onChanged: (_) => onChanged(),
                 ),
                 _NumberField(
-                  controller: css400Controller,
-                  label: '400m sec',
+                  controller: incrementController,
+                  label: 'Increment spm',
                   enabled: enabled,
                   decimal: true,
-                  onChanged: (_) => onChanged(),
+                ),
+                _NumberField(
+                  controller: repeatDistanceController,
+                  label: 'Ramp repeat m',
+                  enabled: enabled,
+                ),
+                _NumberField(
+                  controller: repsController,
+                  label: 'Ramp reps',
+                  enabled: enabled,
+                ),
+                _NumberField(
+                  controller: restController,
+                  label: 'Ramp rest sec',
+                  enabled: enabled,
+                  decimal: true,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _MetricChip(
+                  label:
+                      'Rep ${state.nextRep}/${state.reps} ${current.strokeRate.toStringAsFixed(1)} spm',
+                ),
+                _MetricChip(label: '${state.repeatDistanceMeters}m repeat'),
+                _MetricChip(label: 'Rest ${state.restDuration.inSeconds}s'),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(state.summary, style: Theme.of(context).textTheme.bodySmall),
+            if (state.logs.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              ...[
+                for (final log in state.logs)
+                  ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      'Rep ${log.index} · ${log.strokeRate.toStringAsFixed(1)} spm',
+                    ),
+                    subtitle: Text(
+                      '${DurationUtils.formatDurationWithCentiseconds(log.split)} · '
+                      '${log.strokeCount} strokes · '
+                      '${log.distancePerStroke.toStringAsFixed(2)}m/stroke'
+                      '${log.rpe == null ? '' : ' · RPE ${log.rpe}'}',
+                    ),
+                  ),
+              ],
+            ],
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                _NumberField(
+                  controller: splitController,
+                  label: 'Ramp split sec',
+                  enabled: !state.isComplete,
+                  decimal: true,
+                ),
+                _NumberField(
+                  controller: strokeCountController,
+                  label: 'Ramp strokes',
+                  enabled: !state.isComplete,
+                ),
+                _NumberField(
+                  controller: rpeController,
+                  label: 'Ramp RPE',
+                  enabled: !state.isComplete,
                 ),
                 SizedBox(
-                  width: 180,
+                  width: 220,
                   child: TextField(
-                    controller: nameController,
-                    enabled: enabled,
-                    decoration: const InputDecoration(
-                      labelText: 'CSS template',
-                    ),
+                    controller: notesController,
+                    enabled: !state.isComplete,
+                    decoration:
+                        const InputDecoration(labelText: 'Ramp rep notes'),
                   ),
                 ),
               ],
             ),
-            if (currentPreset != null) ...[
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _MetricChip(
-                    label:
-                        '${DurationUtils.formatDuration(currentPreset.pacePer100)}/100m',
-                  ),
-                  _MetricChip(
-                    label:
-                        '25m ${DurationUtils.formatDurationWithCentiseconds(currentPreset.split25)}',
-                  ),
-                  _MetricChip(
-                    label:
-                        '50m ${DurationUtils.formatDurationWithCentiseconds(currentPreset.split50)}',
-                  ),
-                ],
-              ),
-            ],
             const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerRight,
-              child: FilledButton.icon(
-                onPressed: enabled ? onCreate : null,
-                icon: const Icon(Icons.add_task),
-                label: const Text('Create CSS Template'),
-              ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.end,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: enabled ? onApply : null,
+                  icon: const Icon(Icons.check),
+                  label: const Text('Apply Ramp'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: state.logs.isEmpty ? null : onReset,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Clear Ramp'),
+                ),
+                FilledButton.tonalIcon(
+                  onPressed: state.isComplete ? null : onLogRep,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Log Ramp Rep'),
+                ),
+                FilledButton.icon(
+                  onPressed: onSave,
+                  icon: const Icon(Icons.done_all),
+                  label: const Text('Save Ramp'),
+                ),
+              ],
             ),
           ],
         ),
@@ -1277,6 +1500,106 @@ class _MetricChip extends StatelessWidget {
     return Chip(
       avatar: const Icon(Icons.speed, size: 16),
       label: Text(label),
+    );
+  }
+}
+
+class _CssPaceBuilderPanel extends StatelessWidget {
+  const _CssPaceBuilderPanel({
+    required this.enabled,
+    required this.css200Controller,
+    required this.css400Controller,
+    required this.nameController,
+    required this.preset,
+    required this.onChanged,
+    required this.onCreate,
+  });
+
+  final bool enabled;
+  final TextEditingController css200Controller;
+  final TextEditingController css400Controller;
+  final TextEditingController nameController;
+  final CssPacePreset? preset;
+  final VoidCallback onChanged;
+  final VoidCallback onCreate;
+
+  @override
+  Widget build(BuildContext context) {
+    final currentPreset = preset;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'CSS Pace Builder',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                _NumberField(
+                  controller: css200Controller,
+                  label: '200m sec',
+                  enabled: enabled,
+                  decimal: true,
+                  onChanged: (_) => onChanged(),
+                ),
+                _NumberField(
+                  controller: css400Controller,
+                  label: '400m sec',
+                  enabled: enabled,
+                  decimal: true,
+                  onChanged: (_) => onChanged(),
+                ),
+                SizedBox(
+                  width: 180,
+                  child: TextField(
+                    controller: nameController,
+                    enabled: enabled,
+                    decoration: const InputDecoration(
+                      labelText: 'CSS template',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (currentPreset != null) ...[
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _MetricChip(
+                    label:
+                        '${DurationUtils.formatDuration(currentPreset.pacePer100)}/100m',
+                  ),
+                  _MetricChip(
+                    label:
+                        '25m ${DurationUtils.formatDurationWithCentiseconds(currentPreset.split25)}',
+                  ),
+                  _MetricChip(
+                    label:
+                        '50m ${DurationUtils.formatDurationWithCentiseconds(currentPreset.split50)}',
+                  ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton.icon(
+                onPressed: enabled ? onCreate : null,
+                icon: const Icon(Icons.add_task),
+                label: const Text('Create CSS Template'),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

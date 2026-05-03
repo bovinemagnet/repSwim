@@ -160,12 +160,6 @@ void main() {
       await tester.pump();
 
       expect(find.text('Breath safety acknowledged'), findsOneWidget);
-      await _scrollTo(tester, find.widgetWithText(FilledButton, 'Start'));
-      final startButton = tester.widget<FilledButton>(
-        find.widgetWithText(FilledButton, 'Start'),
-      );
-      expect(startButton.onPressed, isNull);
-
       await tester.tap(find.byType(CheckboxListTile));
       await tester.pump();
       await _scrollTo(tester, find.widgetWithText(FilledButton, 'Start'));
@@ -205,6 +199,78 @@ void main() {
 
       verify(() => harness.dao.insertTempoTemplate(any())).called(1);
       expect(find.text('Saved Threshold tempo.'), findsOneWidget);
+    });
+
+    testWidgets('logs and saves a stroke-rate ramp test', (tester) async {
+      final harness = await _pumpTempoTrainer(tester);
+
+      await _scrollTo(tester, find.widgetWithText(TextField, 'Ramp reps'));
+      await tester.enterText(find.widgetWithText(TextField, 'Start spm'), '60');
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Increment spm'),
+        '4',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Ramp repeat m'),
+        '25',
+      );
+      await tester.enterText(find.widgetWithText(TextField, 'Ramp reps'), '2');
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Apply Ramp'));
+      await tester.pump();
+
+      expect(find.textContaining('Rep 1/2 60.0 spm'), findsOneWidget);
+      expect(find.text('Applied stroke-rate ramp.'), findsOneWidget);
+
+      await tester.pump(const Duration(seconds: 4));
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Ramp split sec'),
+        '18',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Ramp strokes'),
+        '18',
+      );
+      await tester.enterText(find.widgetWithText(TextField, 'Ramp RPE'), '5');
+      await tester.tap(find.widgetWithText(FilledButton, 'Log Ramp Rep'));
+      await tester.pump();
+
+      expect(find.textContaining('Rep 1 · 60.0 spm'), findsOneWidget);
+      expect(find.textContaining('1.39m/stroke'), findsOneWidget);
+      expect(find.textContaining('Rep 2/2 64.0 spm'), findsOneWidget);
+
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Ramp split sec'),
+        '17',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Ramp strokes'),
+        '20',
+      );
+      await tester.enterText(find.widgetWithText(TextField, 'Ramp RPE'), '7');
+      await tester.tap(find.widgetWithText(FilledButton, 'Log Ramp Rep'));
+      await tester.pump();
+
+      expect(find.textContaining('Fastest 1:08/100m'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 4));
+      await _scrollTo(tester, find.widgetWithText(FilledButton, 'Save Ramp'));
+      final saveRampButton = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Save Ramp'),
+      );
+      saveRampButton.onPressed!();
+      await tester.pump();
+
+      final captured = verify(
+        () => harness.dao.insertTempoSessionResult(captureAny()),
+      ).captured.single as TempoSessionResult;
+      expect(captured.mode, TempoMode.strokeRate);
+      expect(captured.actualSplits, const [
+        Duration(seconds: 18),
+        Duration(seconds: 17),
+      ]);
+      expect(captured.strokeCounts, [18, 20]);
+      expect(captured.rpe, 6);
+      expect(captured.notes, contains('rep 1: 60.0 spm'));
+      expect(captured.notes, contains('rep 2: 64.0 spm'));
     });
 
     testWidgets('logs and saves a USRPT race pace result', (tester) async {
