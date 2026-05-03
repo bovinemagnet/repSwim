@@ -13,6 +13,7 @@ import '../../domain/services/tempo_csv_exporter.dart';
 import '../providers/stroke_rate_ramp_provider.dart';
 import '../providers/tempo_template_providers.dart';
 import '../providers/tempo_trainer_provider.dart';
+import '../providers/usrpt_session_provider.dart';
 
 class TempoTrainerScreen extends ConsumerStatefulWidget {
   const TempoTrainerScreen({super.key});
@@ -37,6 +38,12 @@ class _TempoTrainerScreenState extends ConsumerState<TempoTrainerScreen> {
   late final TextEditingController _rampStrokeCountController;
   late final TextEditingController _rampRpeController;
   late final TextEditingController _rampNotesController;
+  late final TextEditingController _usrptEventDistanceController;
+  late final TextEditingController _usrptTargetTimeController;
+  late final TextEditingController _usrptRepeatDistanceController;
+  late final TextEditingController _usrptRestController;
+  late final TextEditingController _usrptFailLimitController;
+  late final TextEditingController _usrptNotesController;
   late final TextEditingController _css200Controller;
   late final TextEditingController _css400Controller;
   late final TextEditingController _cssNameController;
@@ -75,6 +82,18 @@ class _TempoTrainerScreenState extends ConsumerState<TempoTrainerScreen> {
     _rampStrokeCountController = TextEditingController();
     _rampRpeController = TextEditingController();
     _rampNotesController = TextEditingController();
+    final usrpt = ref.read(usrptSessionProvider);
+    _usrptEventDistanceController =
+        TextEditingController(text: usrpt.eventDistanceMeters.toString());
+    _usrptTargetTimeController =
+        TextEditingController(text: _secondsText(usrpt.eventTargetTime));
+    _usrptRepeatDistanceController =
+        TextEditingController(text: usrpt.repetitionDistanceMeters.toString());
+    _usrptRestController =
+        TextEditingController(text: _secondsText(usrpt.restDuration));
+    _usrptFailLimitController =
+        TextEditingController(text: usrpt.failLimit.toString());
+    _usrptNotesController = TextEditingController();
     _css200Controller = TextEditingController();
     _css400Controller = TextEditingController();
     _cssNameController = TextEditingController(text: 'CSS pace');
@@ -101,6 +120,12 @@ class _TempoTrainerScreenState extends ConsumerState<TempoTrainerScreen> {
     _rampStrokeCountController.dispose();
     _rampRpeController.dispose();
     _rampNotesController.dispose();
+    _usrptEventDistanceController.dispose();
+    _usrptTargetTimeController.dispose();
+    _usrptRepeatDistanceController.dispose();
+    _usrptRestController.dispose();
+    _usrptFailLimitController.dispose();
+    _usrptNotesController.dispose();
     _css200Controller.dispose();
     _css400Controller.dispose();
     _cssNameController.dispose();
@@ -272,6 +297,67 @@ class _TempoTrainerScreenState extends ConsumerState<TempoTrainerScreen> {
         );
     if (!mounted) return;
     _showSnack('Saved ramp result with ${result.actualSplits.length} reps.');
+  }
+
+  void _applyUsrptConfig() {
+    final eventDistance = int.tryParse(_usrptEventDistanceController.text);
+    final targetSeconds = double.tryParse(_usrptTargetTimeController.text);
+    final repeatDistance = int.tryParse(_usrptRepeatDistanceController.text);
+    final restSeconds = double.tryParse(_usrptRestController.text);
+    final failLimit = int.tryParse(_usrptFailLimitController.text);
+
+    if (eventDistance == null ||
+        targetSeconds == null ||
+        repeatDistance == null ||
+        restSeconds == null ||
+        failLimit == null) {
+      _showSnack('Enter valid USRPT values.');
+      return;
+    }
+
+    try {
+      ref.read(usrptSessionProvider.notifier).configure(
+            eventDistanceMeters: eventDistance,
+            eventTargetTime:
+                Duration(milliseconds: (targetSeconds * 1000).round()),
+            repetitionDistanceMeters: repeatDistance,
+            restDuration: Duration(milliseconds: (restSeconds * 1000).round()),
+            failLimit: failLimit,
+          );
+    } on ArgumentError {
+      _showSnack('Enter possible USRPT values.');
+      return;
+    }
+    final preset = ref.read(usrptSessionProvider).preset;
+    final tempoState = ref.read(tempoTrainerProvider);
+    ref.read(tempoTrainerProvider.notifier).configure(
+          mode: TempoMode.lapPace,
+          poolLengthMeters: repeatDistance,
+          targetDistanceMeters: repeatDistance,
+          targetTime: preset.repetitionTargetTime,
+          strokeRate: tempoState.strokeRate,
+          breathEveryStrokes: tempoState.breathEveryStrokes,
+          cueSettings: tempoState.cueSettings,
+          safetyWarningAcknowledged: tempoState.safetyWarningAcknowledged,
+        );
+    _syncControllers(ref.read(tempoTrainerProvider));
+    _showSnack('Applied USRPT race pace.');
+    FocusScope.of(context).unfocus();
+  }
+
+  Future<void> _saveUsrptResult(UsrptSessionState usrpt) async {
+    if (usrpt.outcomes.isEmpty) {
+      _showSnack('Log at least one USRPT repetition.');
+      return;
+    }
+    final result =
+        await ref.read(tempoSessionResultsProvider.notifier).saveUsrptResult(
+              preset: usrpt.preset,
+              outcomes: usrpt.outcomes,
+              notes: _usrptNotesController.text,
+            );
+    if (!mounted) return;
+    _showSnack('Saved USRPT result with ${result.strokeCounts.length} reps.');
   }
 
   CssPacePreset? _currentCssPreset() {
@@ -448,6 +534,7 @@ class _TempoTrainerScreenState extends ConsumerState<TempoTrainerScreen> {
     final templatesAsync = ref.watch(tempoTemplatesProvider);
     final resultsAsync = ref.watch(tempoSessionResultsProvider);
     final ramp = ref.watch(strokeRateRampProvider);
+    final usrpt = ref.watch(usrptSessionProvider);
     final cssPreset = _currentCssPreset();
 
     ref.listen(tempoTrainerProvider, (_, next) {
@@ -554,6 +641,25 @@ class _TempoTrainerScreenState extends ConsumerState<TempoTrainerScreen> {
               preset: cssPreset,
               onChanged: () => setState(() {}),
               onCreate: () => _createCssTemplate(state),
+            ),
+            const SizedBox(height: 16),
+            _UsrptPanel(
+              state: usrpt,
+              enabled: !state.isRunning,
+              eventDistanceController: _usrptEventDistanceController,
+              targetTimeController: _usrptTargetTimeController,
+              repeatDistanceController: _usrptRepeatDistanceController,
+              restController: _usrptRestController,
+              failLimitController: _usrptFailLimitController,
+              notesController: _usrptNotesController,
+              onApply: _applyUsrptConfig,
+              onPass: () => ref.read(usrptSessionProvider.notifier).logPass(),
+              onFail: () => ref.read(usrptSessionProvider.notifier).logFail(),
+              onSave: () => _saveUsrptResult(usrpt),
+              onReset: () =>
+                  ref.read(usrptSessionProvider.notifier).resetOutcomes(),
+              onRestTick: (elapsed) =>
+                  ref.read(usrptSessionProvider.notifier).tickRest(elapsed),
             ),
             const SizedBox(height: 16),
             _RunPanel(
@@ -773,6 +879,181 @@ class _TempoConfigPanel extends StatelessWidget {
                 icon: const Icon(Icons.check),
                 label: const Text('Apply'),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _UsrptPanel extends StatelessWidget {
+  const _UsrptPanel({
+    required this.state,
+    required this.enabled,
+    required this.eventDistanceController,
+    required this.targetTimeController,
+    required this.repeatDistanceController,
+    required this.restController,
+    required this.failLimitController,
+    required this.notesController,
+    required this.onApply,
+    required this.onPass,
+    required this.onFail,
+    required this.onSave,
+    required this.onReset,
+    required this.onRestTick,
+  });
+
+  final UsrptSessionState state;
+  final bool enabled;
+  final TextEditingController eventDistanceController;
+  final TextEditingController targetTimeController;
+  final TextEditingController repeatDistanceController;
+  final TextEditingController restController;
+  final TextEditingController failLimitController;
+  final TextEditingController notesController;
+  final VoidCallback onApply;
+  final VoidCallback onPass;
+  final VoidCallback onFail;
+  final VoidCallback onSave;
+  final VoidCallback onReset;
+  final ValueChanged<Duration> onRestTick;
+
+  @override
+  Widget build(BuildContext context) {
+    final preset = state.preset;
+    final targetSplit = DurationUtils.formatDurationWithCentiseconds(
+      preset.repetitionTargetTime,
+    );
+    final rest = DurationUtils.formatDuration(state.restRemaining);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('USRPT Race Pace',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                _NumberField(
+                  controller: eventDistanceController,
+                  label: 'Event m',
+                  enabled: enabled,
+                ),
+                _NumberField(
+                  controller: targetTimeController,
+                  label: 'Event sec',
+                  enabled: enabled,
+                  decimal: true,
+                ),
+                _NumberField(
+                  controller: repeatDistanceController,
+                  label: 'Repeat m',
+                  enabled: enabled,
+                ),
+                _NumberField(
+                  controller: restController,
+                  label: 'Rest sec',
+                  enabled: enabled,
+                  decimal: true,
+                ),
+                _NumberField(
+                  controller: failLimitController,
+                  label: 'Fail rule',
+                  enabled: enabled,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _MetricChip(
+                    label: '${preset.repetitionDistanceMeters}m $targetSplit'),
+                _MetricChip(label: 'Rest ${preset.restDuration.inSeconds}s'),
+                _MetricChip(
+                    label: 'Fails ${state.failCount}/${state.failLimit}'),
+                _MetricChip(label: 'Passes ${state.passCount}'),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              state.failRuleReached
+                  ? state.lastStatus
+                  : '${state.lastStatus} · Next rep ${state.nextRep} · Rest $rest',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            if (state.outcomes.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final outcome in state.outcomes)
+                    Chip(
+                      label: Text('${outcome.index}${outcome.label}'),
+                      avatar: Icon(
+                        outcome.passed
+                            ? Icons.check_circle_outline
+                            : Icons.cancel_outlined,
+                        size: 16,
+                      ),
+                    ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 8),
+            TextField(
+              controller: notesController,
+              decoration: const InputDecoration(labelText: 'USRPT notes'),
+              minLines: 1,
+              maxLines: 2,
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.end,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: enabled ? onApply : null,
+                  icon: const Icon(Icons.check),
+                  label: const Text('Apply USRPT'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: state.restRemaining > Duration.zero
+                      ? () => onRestTick(const Duration(seconds: 5))
+                      : null,
+                  icon: const Icon(Icons.hourglass_bottom),
+                  label: const Text('Rest -5s'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: state.outcomes.isEmpty ? null : onReset,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Clear USRPT'),
+                ),
+                FilledButton.tonalIcon(
+                  onPressed: state.failRuleReached ? null : onPass,
+                  icon: const Icon(Icons.check_circle_outline),
+                  label: const Text('Pass Rep'),
+                ),
+                FilledButton.tonalIcon(
+                  onPressed: state.failRuleReached ? null : onFail,
+                  icon: const Icon(Icons.cancel_outlined),
+                  label: const Text('Fail Rep'),
+                ),
+                FilledButton.icon(
+                  onPressed: onSave,
+                  icon: const Icon(Icons.done_all),
+                  label: const Text('Save USRPT'),
+                ),
+              ],
             ),
           ],
         ),
@@ -1329,12 +1610,14 @@ class _NumberField extends StatelessWidget {
     required this.label,
     required this.enabled,
     this.decimal = false,
+    this.onChanged,
   });
 
   final TextEditingController controller;
   final String label;
   final bool enabled;
   final bool decimal;
+  final ValueChanged<String>? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -1345,6 +1628,7 @@ class _NumberField extends StatelessWidget {
         enabled: enabled,
         decoration: InputDecoration(labelText: label),
         keyboardType: TextInputType.numberWithOptions(decimal: decimal),
+        onChanged: onChanged,
       ),
     );
   }

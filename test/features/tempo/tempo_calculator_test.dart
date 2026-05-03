@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rep_swim/features/tempo/domain/services/css_pace_calculator.dart';
 import 'package:rep_swim/features/tempo/domain/services/stroke_rate_ramp_calculator.dart';
 import 'package:rep_swim/features/tempo/domain/services/tempo_calculator.dart';
+import 'package:rep_swim/features/tempo/domain/services/usrpt_calculator.dart';
 
 void main() {
   group('TempoCalculator', () {
@@ -99,6 +100,47 @@ void main() {
           repeatDistanceMeters: 25,
           reps: 4,
           restDuration: const Duration(seconds: 20),
+        ),
+        throwsArgumentError,
+      );
+    });
+  });
+
+  group('UsrptRacePaceCalculator', () {
+    const calculator = UsrptRacePaceCalculator();
+
+    test('calculates race pace split targets for repetitions', () {
+      final preset = calculator.calculate(
+        eventDistanceMeters: 100,
+        eventTargetTime: const Duration(seconds: 60),
+        repetitionDistanceMeters: 25,
+        restDuration: const Duration(seconds: 20),
+        failLimit: 3,
+      );
+
+      expect(preset.repetitionTargetTime, const Duration(seconds: 15));
+      expect(preset.restDuration, const Duration(seconds: 20));
+      expect(preset.repetitionsPerRace, 4);
+    });
+
+    test('rejects impossible race pace inputs', () {
+      expect(
+        () => calculator.calculate(
+          eventDistanceMeters: 100,
+          eventTargetTime: Duration.zero,
+          repetitionDistanceMeters: 25,
+          restDuration: const Duration(seconds: 20),
+          failLimit: 3,
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => calculator.calculate(
+          eventDistanceMeters: 50,
+          eventTargetTime: const Duration(seconds: 30),
+          repetitionDistanceMeters: 100,
+          restDuration: const Duration(seconds: 20),
+          failLimit: 3,
         ),
         throwsArgumentError,
       );
