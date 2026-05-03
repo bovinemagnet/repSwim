@@ -132,6 +132,7 @@ void main() {
       expect(find.text('Sound'), findsOneWidget);
       expect(find.text('Vibration'), findsOneWidget);
       expect(find.text('Visual flash'), findsOneWidget);
+      expect(find.byTooltip('Tempo history'), findsOneWidget);
 
       await tester.ensureVisible(find.widgetWithText(FilledButton, 'Start'));
       await tester.pumpAndSettle();

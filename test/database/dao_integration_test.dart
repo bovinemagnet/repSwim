@@ -262,6 +262,10 @@ void main() {
       expect(results.single.strokeCounts, [18, 19]);
       expect(results.single.notes, 'Held rhythm');
       expect(await dao.getTempoSessionResults('profile-2'), hasLength(1));
+
+      await dao.deleteTempoSessionResult('tempo-result-1', 'profile-1');
+      expect(await dao.getTempoSessionResults('profile-1'), isEmpty);
+      expect(await dao.getTempoSessionResults('profile-2'), hasLength(1));
     });
 
     test('sync queue preserves insertion order and increments retry count',
