@@ -8,8 +8,10 @@ import '../../../../database/daos/sync_queue_dao.dart';
 import '../../../../database/daos/training_template_dao.dart';
 import '../../../profiles/presentation/providers/profile_providers.dart';
 import '../../../templates/presentation/providers/training_template_providers.dart';
+import '../../domain/entities/tempo_mode.dart';
 import '../../domain/entities/tempo_session_result.dart';
 import '../../domain/entities/tempo_template.dart';
+import '../../domain/services/css_pace_calculator.dart';
 import 'tempo_trainer_provider.dart';
 
 const _uuid = Uuid();
@@ -52,6 +54,41 @@ class TempoTemplatesNotifier
       profileId: _profileId,
       name: name.trim(),
       now: now,
+    );
+    await _dao.insertTempoTemplate(template);
+    await _queueChange(
+      entityType: 'tempo_template',
+      entityId: template.id,
+      operation: SyncOperation.create,
+      payload: tempoTemplatePayload(template),
+    );
+    await load();
+    return template;
+  }
+
+  Future<TempoTemplate> saveCssPacePreset({
+    required String name,
+    required CssPacePreset preset,
+    required int poolLengthMeters,
+    required double strokeRate,
+    required int breathEveryStrokes,
+    required TempoCueSettings cueSettings,
+  }) async {
+    final now = DateTime.now().toUtc();
+    final template = TempoTemplate(
+      id: _uuid.v4(),
+      profileId: _profileId,
+      name: name.trim(),
+      mode: TempoMode.lapPace,
+      poolLengthMeters: poolLengthMeters,
+      targetDistanceMeters: 100,
+      targetTime: preset.pacePer100,
+      strokeRate: strokeRate,
+      breathEveryStrokes: breathEveryStrokes,
+      cueSettings: cueSettings,
+      safetyWarningAcknowledged: false,
+      createdAt: now,
+      updatedAt: now,
     );
     await _dao.insertTempoTemplate(template);
     await _queueChange(

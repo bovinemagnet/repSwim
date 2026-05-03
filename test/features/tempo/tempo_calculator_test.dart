@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rep_swim/features/tempo/domain/services/css_pace_calculator.dart';
 import 'package:rep_swim/features/tempo/domain/services/tempo_calculator.dart';
 
 void main() {
@@ -54,6 +55,46 @@ void main() {
     test('flags high breath intervals for safety acknowledgement', () {
       expect(calculator.requiresBreathSafetyWarning(4), isFalse);
       expect(calculator.requiresBreathSafetyWarning(5), isTrue);
+    });
+  });
+
+  group('CssPaceCalculator', () {
+    const calculator = CssPaceCalculator();
+
+    test('calculates CSS pace and pool split targets', () {
+      final preset = calculator.calculate(
+        time200: const Duration(minutes: 2, seconds: 30),
+        time400: const Duration(minutes: 5, seconds: 20),
+      );
+
+      expect(preset.pacePer100, const Duration(seconds: 85));
+      expect(preset.split25, const Duration(milliseconds: 21250));
+      expect(preset.split50, const Duration(milliseconds: 42500));
+      expect(preset.cssMetersPerSecond, closeTo(1.176, 0.001));
+    });
+
+    test('rejects missing or impossible CSS times', () {
+      expect(
+        () => calculator.calculate(
+          time200: Duration.zero,
+          time400: const Duration(minutes: 5),
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => calculator.calculate(
+          time200: const Duration(minutes: 5),
+          time400: const Duration(minutes: 4),
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => calculator.calculate(
+          time200: const Duration(minutes: 2, seconds: 30),
+          time400: const Duration(minutes: 4, seconds: 40),
+        ),
+        throwsArgumentError,
+      );
     });
   });
 }
