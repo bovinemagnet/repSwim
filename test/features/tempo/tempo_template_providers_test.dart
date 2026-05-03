@@ -6,6 +6,7 @@ import 'package:rep_swim/database/daos/training_template_dao.dart';
 import 'package:rep_swim/features/tempo/domain/entities/tempo_mode.dart';
 import 'package:rep_swim/features/tempo/domain/entities/tempo_session_result.dart';
 import 'package:rep_swim/features/tempo/domain/entities/tempo_template.dart';
+import 'package:rep_swim/features/tempo/domain/services/css_pace_calculator.dart';
 import 'package:rep_swim/features/tempo/domain/services/stroke_rate_ramp_calculator.dart';
 import 'package:rep_swim/features/tempo/presentation/providers/tempo_template_providers.dart';
 import 'package:rep_swim/features/tempo/presentation/providers/tempo_trainer_provider.dart';
@@ -146,6 +147,59 @@ void main() {
         ),
       ).called(1);
     });
+
+    test('saves CSS pace preset as a lap pace template', () async {
+      final dao = _MockTrainingTemplateDao();
+      final queue = _MockSyncQueueDao();
+      when(() => dao.getTempoTemplates(any())).thenAnswer((_) async => []);
+      when(() => dao.insertTempoTemplate(any())).thenAnswer((_) async {});
+      when(
+        () => queue.enqueue(
+          profileId: any(named: 'profileId'),
+          entityType: any(named: 'entityType'),
+          entityId: any(named: 'entityId'),
+          operation: any(named: 'operation'),
+          payload: any(named: 'payload'),
+        ),
+      ).thenAnswer((_) async {});
+
+      final notifier = TempoTemplatesNotifier(
+        dao,
+        'profile-1',
+        syncQueueDao: queue,
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      final preset = const CssPaceCalculator().calculate(
+        time200: const Duration(minutes: 2, seconds: 30),
+        time400: const Duration(minutes: 5, seconds: 20),
+      );
+      final saved = await notifier.saveCssPacePreset(
+        name: ' CSS test ',
+        preset: preset,
+        poolLengthMeters: 25,
+        strokeRate: 70,
+        breathEveryStrokes: 3,
+        cueSettings: const TempoCueSettings(visualFlash: false),
+      );
+
+      expect(saved.name, 'CSS test');
+      expect(saved.mode, TempoMode.lapPace);
+      expect(saved.targetDistanceMeters, 100);
+      expect(saved.targetTime, const Duration(seconds: 85));
+      expect(saved.poolLengthMeters, 25);
+      expect(saved.cueSettings.visualFlash, isFalse);
+      verify(() => dao.insertTempoTemplate(any())).called(1);
+      verify(
+        () => queue.enqueue(
+          profileId: 'profile-1',
+          entityType: 'tempo_template',
+          entityId: saved.id,
+          operation: SyncOperation.create,
+          payload: any(named: 'payload'),
+        ),
+      ).called(1);
+    });
   });
 
   group('TempoSessionResultsNotifier', () {
@@ -278,6 +332,46 @@ void main() {
           payload: any(named: 'payload'),
         ),
       ).called(1);
+    });
+
+    test('deletes session result by profile and queues deletion', () async {
+      final dao = _MockTrainingTemplateDao();
+      final queue = _MockSyncQueueDao();
+      when(() => dao.getTempoSessionResults(any())).thenAnswer((_) async => []);
+      when(() => dao.deleteTempoSessionResult(any(), any()))
+          .thenAnswer((_) async {});
+      when(
+        () => queue.enqueue(
+          profileId: any(named: 'profileId'),
+          entityType: any(named: 'entityType'),
+          entityId: any(named: 'entityId'),
+          operation: any(named: 'operation'),
+          payload: any(named: 'payload'),
+        ),
+      ).thenAnswer((_) async {});
+
+      final notifier = TempoSessionResultsNotifier(
+        dao,
+        'profile-1',
+        syncQueueDao: queue,
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      await notifier.deleteResult('tempo-result-1');
+
+      verify(() => dao.deleteTempoSessionResult('tempo-result-1', 'profile-1'))
+          .called(1);
+      verify(
+        () => queue.enqueue(
+          profileId: 'profile-1',
+          entityType: 'tempo_session_result',
+          entityId: 'tempo-result-1',
+          operation: SyncOperation.delete,
+          payload: any(named: 'payload'),
+        ),
+      ).called(1);
+      verify(() => dao.getTempoSessionResults('profile-1'))
+          .called(greaterThanOrEqualTo(2));
     });
   });
 }

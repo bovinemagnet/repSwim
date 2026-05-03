@@ -286,6 +286,10 @@ void main() {
       expect(results.last.strokeCounts, [18, 19]);
       expect(results.last.notes, 'Held rhythm');
       expect(await dao.getTempoSessionResults('profile-2'), hasLength(1));
+
+      await dao.deleteTempoSessionResult('tempo-result-1', 'profile-1');
+      expect(await dao.getTempoSessionResults('profile-1'), isEmpty);
+      expect(await dao.getTempoSessionResults('profile-2'), hasLength(1));
     });
 
     test('sync queue preserves insertion order and increments retry count',
@@ -457,17 +461,26 @@ void main() {
           bronzeTime: const Duration(seconds: 70),
         ),
       );
+      await dao.insertOrUpdate(
+        standard.copyWith(
+          id: 'standard-3',
+          age: 11,
+          distance: 50,
+          stroke: 'Backstroke',
+        ),
+      );
 
       final profileOneStandards = await dao.getAll('profile-1');
       final profileTwoStandards = await dao.getAll('profile-2');
-      expect(profileOneStandards, hasLength(1));
-      expect(profileOneStandards.single.distance, 100);
-      expect(
-          profileOneStandards.single.bronzeTime, const Duration(seconds: 70));
+      expect(profileOneStandards, hasLength(2));
+      expect(profileOneStandards.map((standard) => standard.age), [11, 12]);
+      expect(profileOneStandards.first.stroke, 'Backstroke');
+      expect(profileOneStandards.last.distance, 100);
+      expect(profileOneStandards.last.bronzeTime, const Duration(seconds: 70));
       expect(profileTwoStandards.single.id, 'standard-2');
 
       await dao.delete('standard-1', 'profile-1');
-      expect(await dao.getAll('profile-1'), isEmpty);
+      expect(await dao.getAll('profile-1'), hasLength(1));
       expect(await dao.getAll('profile-2'), hasLength(1));
     });
 

@@ -132,6 +132,7 @@ void main() {
       expect(find.text('Sound'), findsOneWidget);
       expect(find.text('Vibration'), findsOneWidget);
       expect(find.text('Visual flash'), findsOneWidget);
+      expect(find.byTooltip('Tempo history'), findsOneWidget);
 
       await _scrollTo(tester, find.widgetWithText(FilledButton, 'Start'));
       await tester.pumpAndSettle();
@@ -159,9 +160,14 @@ void main() {
       await tester.pump();
 
       expect(find.text('Breath safety acknowledged'), findsOneWidget);
+      await _scrollTo(tester, find.widgetWithText(FilledButton, 'Start'));
+      final startButton = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Start'),
+      );
+      expect(startButton.onPressed, isNull);
+
       await tester.tap(find.byType(CheckboxListTile));
       await tester.pump();
-      await _scrollTo(tester, find.widgetWithText(FilledButton, 'Start'));
       final enabledStart = tester.widget<FilledButton>(
         find.widgetWithText(FilledButton, 'Start'),
       );
@@ -199,6 +205,7 @@ void main() {
       verify(() => harness.dao.insertTempoTemplate(any())).called(1);
       expect(find.text('Saved Threshold tempo.'), findsOneWidget);
     });
+
 
     testWidgets('logs and saves a stroke-rate ramp test', (tester) async {
       final harness = await _pumpTempoTrainer(tester);
@@ -270,6 +277,82 @@ void main() {
       expect(captured.rpe, 6);
       expect(captured.notes, contains('rep 1: 60.0 spm'));
       expect(captured.notes, contains('rep 2: 64.0 spm'));
+    });
+
+    testWidgets('creates a CSS lap pace template from 200m and 400m times',
+        (tester) async {
+      final harness = await _pumpTempoTrainer(tester);
+
+      await _scrollTo(
+        tester,
+        find.widgetWithText(TextField, '200m sec'),
+      );
+      await tester.enterText(find.widgetWithText(TextField, '200m sec'), '150');
+      await tester.enterText(find.widgetWithText(TextField, '400m sec'), '320');
+      await tester.enterText(
+        find.widgetWithText(TextField, 'CSS template'),
+        'CSS threshold',
+      );
+      await tester.pump();
+
+      expect(find.text('1:25/100m'), findsOneWidget);
+      expect(find.text('25m 00:21.25'), findsOneWidget);
+      expect(find.text('50m 00:42.50'), findsOneWidget);
+
+      await _scrollTo(
+        tester,
+        find.widgetWithText(FilledButton, 'Create CSS Template'),
+      );
+      await tester
+          .tap(find.widgetWithText(FilledButton, 'Create CSS Template'));
+      await tester.pumpAndSettle();
+
+      final captured = verify(
+        () => harness.dao.insertTempoTemplate(captureAny()),
+      ).captured.single as TempoTemplate;
+      expect(captured.name, 'CSS threshold');
+      expect(captured.mode, TempoMode.lapPace);
+      expect(captured.targetDistanceMeters, 100);
+      expect(captured.targetTime, const Duration(seconds: 85));
+      expect(find.text('Created CSS threshold.'), findsOneWidget);
+    });
+
+    testWidgets('validates missing CSS times', (tester) async {
+      await _pumpTempoTrainer(tester);
+
+      await _scrollTo(
+        tester,
+        find.widgetWithText(FilledButton, 'Create CSS Template'),
+      );
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, 100));
+      await tester.pumpAndSettle();
+      await tester
+          .tap(find.widgetWithText(FilledButton, 'Create CSS Template'));
+      await tester.pump();
+
+      expect(find.text('Enter valid 200m and 400m times.'), findsOneWidget);
+    });
+
+    testWidgets('validates impossible CSS times', (tester) async {
+      await _pumpTempoTrainer(tester);
+
+      await _scrollTo(
+        tester,
+        find.widgetWithText(TextField, '200m sec'),
+      );
+      await tester.enterText(find.widgetWithText(TextField, '200m sec'), '300');
+      await tester.enterText(find.widgetWithText(TextField, '400m sec'), '240');
+      await _scrollTo(
+        tester,
+        find.widgetWithText(FilledButton, 'Create CSS Template'),
+      );
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, 100));
+      await tester.pumpAndSettle();
+      await tester
+          .tap(find.widgetWithText(FilledButton, 'Create CSS Template'));
+      await tester.pump();
+
+      expect(find.text('Enter possible 200m and 400m times.'), findsOneWidget);
     });
 
     testWidgets('saves a tempo result with actual splits', (tester) async {

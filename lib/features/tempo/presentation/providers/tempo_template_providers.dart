@@ -11,6 +11,7 @@ import '../../../templates/presentation/providers/training_template_providers.da
 import '../../domain/entities/tempo_mode.dart';
 import '../../domain/entities/tempo_session_result.dart';
 import '../../domain/entities/tempo_template.dart';
+import '../../domain/services/css_pace_calculator.dart';
 import '../../domain/services/stroke_rate_ramp_calculator.dart';
 import 'tempo_trainer_provider.dart';
 
@@ -54,6 +55,41 @@ class TempoTemplatesNotifier
       profileId: _profileId,
       name: name.trim(),
       now: now,
+    );
+    await _dao.insertTempoTemplate(template);
+    await _queueChange(
+      entityType: 'tempo_template',
+      entityId: template.id,
+      operation: SyncOperation.create,
+      payload: tempoTemplatePayload(template),
+    );
+    await load();
+    return template;
+  }
+
+  Future<TempoTemplate> saveCssPacePreset({
+    required String name,
+    required CssPacePreset preset,
+    required int poolLengthMeters,
+    required double strokeRate,
+    required int breathEveryStrokes,
+    required TempoCueSettings cueSettings,
+  }) async {
+    final now = DateTime.now().toUtc();
+    final template = TempoTemplate(
+      id: _uuid.v4(),
+      profileId: _profileId,
+      name: name.trim(),
+      mode: TempoMode.lapPace,
+      poolLengthMeters: poolLengthMeters,
+      targetDistanceMeters: 100,
+      targetTime: preset.pacePer100,
+      strokeRate: strokeRate,
+      breathEveryStrokes: breathEveryStrokes,
+      cueSettings: cueSettings,
+      safetyWarningAcknowledged: false,
+      createdAt: now,
+      updatedAt: now,
     );
     await _dao.insertTempoTemplate(template);
     await _queueChange(
@@ -227,6 +263,17 @@ class TempoSessionResultsNotifier
     if (rpes.isEmpty) return null;
     final total = rpes.fold<int>(0, (sum, value) => sum + value);
     return (total / rpes.length).round();
+  }
+
+  Future<void> deleteResult(String id) async {
+    await _dao.deleteTempoSessionResult(id, _profileId);
+    await _queueChange(
+      entityType: 'tempo_session_result',
+      entityId: id,
+      operation: SyncOperation.delete,
+      payload: deletedEntityPayload(id: id, profileId: _profileId),
+    );
+    await load();
   }
 
   Future<void> _queueChange({

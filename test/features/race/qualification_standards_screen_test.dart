@@ -69,6 +69,27 @@ void main() {
       expect(find.text('Bronze: 00:35.00'), findsOneWidget);
     });
 
+    testWidgets('shows manual medal standards by selected age', (tester) async {
+      await _pumpStandards(tester, [
+        _standard(age: 12, distance: 50, stroke: 'Freestyle'),
+        _standard(age: 12, distance: 100, stroke: 'Backstroke'),
+        _standard(age: 13, distance: 200, stroke: 'Freestyle'),
+      ]);
+
+      expect(find.text('Medal standards by age'), findsOneWidget);
+      expect(find.text('2 standards for age 12'), findsOneWidget);
+      expect(find.text('Gold'), findsOneWidget);
+      expect(find.text('Silver'), findsOneWidget);
+      expect(find.text('Bronze'), findsOneWidget);
+
+      await tester.tap(find.text('Age 12').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Age 13').last);
+      await tester.pumpAndSettle();
+
+      expect(find.text('1 standard for age 13'), findsOneWidget);
+    });
+
     testWidgets('validates medal order', (tester) async {
       await _pumpStandards(tester, []);
 
@@ -137,13 +158,17 @@ Future<void> _pumpStandards(
   await tester.pump();
 }
 
-QualificationStandard _standard() {
+QualificationStandard _standard({
+  int age = 12,
+  int distance = 50,
+  String stroke = 'Freestyle',
+}) {
   return QualificationStandard(
-    id: 'standard-1',
+    id: 'standard-$age-$distance-$stroke',
     profileId: 'profile-1',
-    age: 12,
-    distance: 50,
-    stroke: 'Freestyle',
+    age: age,
+    distance: distance,
+    stroke: stroke,
     course: RaceCourse.shortCourseMeters,
     goldTime: const Duration(seconds: 30),
     silverTime: const Duration(seconds: 32),
