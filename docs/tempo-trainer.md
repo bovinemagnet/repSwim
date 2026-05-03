@@ -67,6 +67,20 @@ The screen exposes these inputs:
 All numeric configuration values must be positive. Invalid setup values show
 `Enter valid tempo values.` and are not applied.
 
+## CSS Pace Builder
+
+The CSS Pace Builder accepts recent 200m and 400m times in seconds. It calculates
+critical swim speed from the difference between those times, then derives:
+
+- CSS pace per 100m.
+- 25m cue target.
+- 50m cue target.
+
+The builder saves the calculated pace as a reusable Lap Pace tempo template. CSS
+templates use a 100m target distance, the calculated pace as target time, and the
+current pool length and cue output settings. Invalid or impossible inputs are not
+saved.
+
 ## Cue Outputs
 
 Cue output settings are configured with chips:
@@ -191,7 +205,6 @@ The MVP intentionally does not include:
 
 - Low-drift audio scheduling.
 - Saved session history/detail screens.
-- CSS pace preset generation.
 - Stroke-rate ramp tests.
 - USRPT race-pace presets and fail counters.
 - Per-rep or per-segment race modelling.
@@ -201,6 +214,5 @@ Follow-up issues:
 
 - #15 Tempo session history/detail views.
 - #16 Low-drift audio scheduling.
-- #17 CSS pace preset builder.
 - #18 USRPT race-pace preset with fail counter.
 - #19 Stroke-rate ramp test preset.
