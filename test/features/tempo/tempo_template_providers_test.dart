@@ -202,5 +202,45 @@ void main() {
         ),
       ).called(1);
     });
+
+    test('deletes session result by profile and queues deletion', () async {
+      final dao = _MockTrainingTemplateDao();
+      final queue = _MockSyncQueueDao();
+      when(() => dao.getTempoSessionResults(any())).thenAnswer((_) async => []);
+      when(() => dao.deleteTempoSessionResult(any(), any()))
+          .thenAnswer((_) async {});
+      when(
+        () => queue.enqueue(
+          profileId: any(named: 'profileId'),
+          entityType: any(named: 'entityType'),
+          entityId: any(named: 'entityId'),
+          operation: any(named: 'operation'),
+          payload: any(named: 'payload'),
+        ),
+      ).thenAnswer((_) async {});
+
+      final notifier = TempoSessionResultsNotifier(
+        dao,
+        'profile-1',
+        syncQueueDao: queue,
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      await notifier.deleteResult('tempo-result-1');
+
+      verify(() => dao.deleteTempoSessionResult('tempo-result-1', 'profile-1'))
+          .called(1);
+      verify(
+        () => queue.enqueue(
+          profileId: 'profile-1',
+          entityType: 'tempo_session_result',
+          entityId: 'tempo-result-1',
+          operation: SyncOperation.delete,
+          payload: any(named: 'payload'),
+        ),
+      ).called(1);
+      verify(() => dao.getTempoSessionResults('profile-1'))
+          .called(greaterThanOrEqualTo(2));
+    });
   });
 }

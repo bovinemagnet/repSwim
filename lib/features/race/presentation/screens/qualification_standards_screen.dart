@@ -137,6 +137,8 @@ class QualificationStandardsScreen extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
                 children: [
                   if (standards.isNotEmpty) ...[
+                    _AgeMedalStandardsPanel(standards: standards),
+                    const SizedBox(height: 12),
                     const _SectionHeader(title: 'Manual medal standards'),
                     for (final standard in standards)
                       Padding(
@@ -170,6 +172,122 @@ class QualificationStandardsScreen extends ConsumerWidget {
         loading: () =>
             const Center(child: CircularProgressIndicator.adaptive()),
         error: (error, _) => Center(child: Text('Error: $error')),
+      ),
+    );
+  }
+}
+
+class _AgeMedalStandardsPanel extends StatefulWidget {
+  const _AgeMedalStandardsPanel({required this.standards});
+
+  final List<QualificationStandard> standards;
+
+  @override
+  State<_AgeMedalStandardsPanel> createState() =>
+      _AgeMedalStandardsPanelState();
+}
+
+class _AgeMedalStandardsPanelState extends State<_AgeMedalStandardsPanel> {
+  int? _selectedAge;
+
+  @override
+  Widget build(BuildContext context) {
+    final ages = qualificationAges(widget.standards);
+    if (ages.isEmpty) return const SizedBox.shrink();
+    final selectedAge = _selectedAge != null && ages.contains(_selectedAge)
+        ? _selectedAge!
+        : ages.first;
+    final ageStandards =
+        qualificationStandardsForAge(widget.standards, selectedAge);
+    final standardLabel = ageStandards.length == 1 ? 'standard' : 'standards';
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.workspace_premium_outlined),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Medal standards by age',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                SizedBox(
+                  width: 140,
+                  child: DropdownButtonFormField<int>(
+                    isExpanded: true,
+                    initialValue: selectedAge,
+                    decoration: const InputDecoration(labelText: 'Age'),
+                    items: [
+                      for (final age in ages)
+                        DropdownMenuItem(
+                          value: age,
+                          child: Text('Age $age'),
+                        ),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() => _selectedAge = value);
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text('${ageStandards.length} $standardLabel for age $selectedAge'),
+            const SizedBox(height: 8),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                columns: const [
+                  DataColumn(label: Text('Event')),
+                  DataColumn(label: Text('Course')),
+                  DataColumn(label: Text('Gold')),
+                  DataColumn(label: Text('Silver')),
+                  DataColumn(label: Text('Bronze')),
+                ],
+                rows: [
+                  for (final standard in ageStandards)
+                    DataRow(
+                      cells: [
+                        DataCell(
+                          Text('${standard.distance}m ${standard.stroke}'),
+                        ),
+                        DataCell(Text(standard.course.code)),
+                        DataCell(
+                          Text(
+                            DurationUtils.formatDurationWithCentiseconds(
+                              standard.goldTime,
+                            ),
+                          ),
+                        ),
+                        DataCell(
+                          Text(
+                            DurationUtils.formatDurationWithCentiseconds(
+                              standard.silverTime,
+                            ),
+                          ),
+                        ),
+                        DataCell(
+                          Text(
+                            DurationUtils.formatDurationWithCentiseconds(
+                              standard.bronzeTime,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
