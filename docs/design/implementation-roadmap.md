@@ -66,6 +66,19 @@ This status reflects the current codebase after consolidating the PRD, V1 build 
 - PB rebuild after session deletion.
 - PB screen grouped by stroke.
 
+### Race Times & Qualification Standards
+
+- Race time logging with meet name, date, event, course, time, placement,
+  location, and notes.
+- Race time search, filters, sort options, mobile cards, and desktop table.
+- Manual qualification standards scoped to the active swimmer profile.
+- Manual standards store age, event, course, and gold/silver/bronze thresholds.
+- Qualification standard validation keeps gold faster than silver and bronze.
+- Qualification matching by profile, age, distance, stroke, and course.
+- Age-based medal standards table on the Qualification Standards screen.
+- Imported Victorian Metro SC 2026/27 meet standards as local reference data.
+- Local sync queue payloads for manual qualification standard mutations.
+
 ### Analytics
 
 - Total sessions.
@@ -120,6 +133,8 @@ This status reflects the current codebase after consolidating the PRD, V1 build 
 - Interval timer provider and widget tests.
 - Swim session widget tests.
 - Swim session detail widget tests.
+- Race time service, provider, and widget tests.
+- Qualification standard service, provider, widget, source, and DAO tests.
 - Dryland provider update test.
 - Sync payload tests.
 - Sync queue provider integration tests.

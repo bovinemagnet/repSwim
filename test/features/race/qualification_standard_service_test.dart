@@ -63,12 +63,32 @@ void main() {
       expect(result?.tier, QualificationTier.silver);
       expect(result?.margin, const Duration(seconds: 1));
     });
+
+    test('groups and sorts medal standards by age and event', () {
+      final standards = [
+        _standard(age: 13, distance: 100, stroke: 'Backstroke'),
+        _standard(age: 12, distance: 100, stroke: 'Freestyle'),
+        _standard(age: 12, distance: 50, stroke: 'Butterfly'),
+        _standard(age: 12, distance: 50, stroke: 'Backstroke'),
+      ];
+
+      expect(qualificationAges(standards), [12, 13]);
+      expect(qualificationStandardsByAge(standards).keys, [12, 13]);
+
+      final age12 = qualificationStandardsForAge(standards, 12);
+      expect(
+        age12.map((standard) => '${standard.distance} ${standard.stroke}'),
+        ['50 Backstroke', '50 Butterfly', '100 Freestyle'],
+      );
+    });
   });
 }
 
 QualificationStandard _standard({
   String profileId = 'profile-1',
   int age = 12,
+  int distance = 50,
+  String stroke = 'Freestyle',
   RaceCourse course = RaceCourse.shortCourseMeters,
   Duration goldTime = const Duration(seconds: 30),
   Duration silverTime = const Duration(seconds: 32),
@@ -78,8 +98,8 @@ QualificationStandard _standard({
     id: 'standard-1',
     profileId: profileId,
     age: age,
-    distance: 50,
-    stroke: 'Freestyle',
+    distance: distance,
+    stroke: stroke,
     course: course,
     goldTime: goldTime,
     silverTime: silverTime,
