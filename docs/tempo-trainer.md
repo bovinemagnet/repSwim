@@ -88,6 +88,20 @@ USRPT results save through the same offline tempo result store. Saved USRPT
 results are profile-scoped, use Lap Pace mode, store pass/fail outcomes in the
 saved result notes, and include structured metadata in the queued sync payload.
 
+## CSS Pace Builder
+
+The CSS Pace Builder accepts recent 200m and 400m times in seconds. It calculates
+critical swim speed from the difference between those times, then derives:
+
+- CSS pace per 100m.
+- 25m cue target.
+- 50m cue target.
+
+The builder saves the calculated pace as a reusable Lap Pace tempo template. CSS
+templates use a 100m target distance, the calculated pace as target time, and the
+current pool length and cue output settings. Invalid or impossible inputs are not
+saved.
+
 ## Cue Outputs
 
 Cue output settings are configured with chips:
@@ -223,12 +237,10 @@ Current coverage includes:
 
 The MVP intentionally does not include:
 
-- CSS pace preset generation.
 - Stroke-rate ramp tests.
 - Per-rep or per-segment race modelling.
 - Wearable, Bluetooth, or external device integration.
 
 Follow-up issues:
 
-- #17 CSS pace preset builder.
 - #19 Stroke-rate ramp test preset.

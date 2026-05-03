@@ -7,6 +7,7 @@ import '../../../../core/utils/duration_utils.dart';
 import '../../domain/entities/tempo_mode.dart';
 import '../../domain/entities/tempo_session_result.dart';
 import '../../domain/entities/tempo_template.dart';
+import '../../domain/services/css_pace_calculator.dart';
 import '../../domain/services/tempo_calculator.dart';
 import '../../domain/services/tempo_csv_exporter.dart';
 import '../providers/tempo_template_providers.dart';
@@ -33,6 +34,9 @@ class _TempoTrainerScreenState extends ConsumerState<TempoTrainerScreen> {
   late final TextEditingController _usrptRestController;
   late final TextEditingController _usrptFailLimitController;
   late final TextEditingController _usrptNotesController;
+  late final TextEditingController _css200Controller;
+  late final TextEditingController _css400Controller;
+  late final TextEditingController _cssNameController;
   late final TextEditingController _splitsController;
   late final TextEditingController _strokeCountsController;
   late final TextEditingController _rpeController;
@@ -66,6 +70,9 @@ class _TempoTrainerScreenState extends ConsumerState<TempoTrainerScreen> {
     _usrptFailLimitController =
         TextEditingController(text: usrpt.failLimit.toString());
     _usrptNotesController = TextEditingController();
+    _css200Controller = TextEditingController();
+    _css400Controller = TextEditingController();
+    _cssNameController = TextEditingController(text: 'CSS pace');
     _splitsController = TextEditingController();
     _strokeCountsController = TextEditingController();
     _rpeController = TextEditingController();
@@ -86,6 +93,9 @@ class _TempoTrainerScreenState extends ConsumerState<TempoTrainerScreen> {
     _usrptRestController.dispose();
     _usrptFailLimitController.dispose();
     _usrptNotesController.dispose();
+    _css200Controller.dispose();
+    _css400Controller.dispose();
+    _cssNameController.dispose();
     _splitsController.dispose();
     _strokeCountsController.dispose();
     _rpeController.dispose();
@@ -221,6 +231,63 @@ class _TempoTrainerScreenState extends ConsumerState<TempoTrainerScreen> {
     _showSnack('Saved USRPT result with ${result.strokeCounts.length} reps.');
   }
 
+  CssPacePreset? _currentCssPreset() {
+    final time200 = _parseSecondsDuration(_css200Controller.text);
+    final time400 = _parseSecondsDuration(_css400Controller.text);
+    if (time200 == null || time400 == null) return null;
+    try {
+      return const CssPaceCalculator().calculate(
+        time200: time200,
+        time400: time400,
+      );
+    } on ArgumentError {
+      return null;
+    }
+  }
+
+  Duration? _parseSecondsDuration(String value) {
+    final seconds = double.tryParse(value.trim());
+    if (seconds == null || seconds <= 0) return null;
+    return Duration(milliseconds: (seconds * 1000).round());
+  }
+
+  Future<void> _createCssTemplate(TempoTrainerState state) async {
+    final time200 = _parseSecondsDuration(_css200Controller.text);
+    final time400 = _parseSecondsDuration(_css400Controller.text);
+    if (time200 == null || time400 == null) {
+      _showSnack('Enter valid 200m and 400m times.');
+      return;
+    }
+
+    final CssPacePreset preset;
+    try {
+      preset = const CssPaceCalculator().calculate(
+        time200: time200,
+        time400: time400,
+      );
+    } on ArgumentError {
+      _showSnack('Enter possible 200m and 400m times.');
+      return;
+    }
+
+    final name = _cssNameController.text.trim().isEmpty
+        ? 'CSS pace'
+        : _cssNameController.text.trim();
+    final saved =
+        await ref.read(tempoTemplatesProvider.notifier).saveCssPacePreset(
+              name: name,
+              preset: preset,
+              poolLengthMeters: state.poolLengthMeters,
+              strokeRate: state.strokeRate,
+              breathEveryStrokes: state.breathEveryStrokes,
+              cueSettings: state.cueSettings,
+            );
+    if (!mounted) return;
+    ref.read(tempoTrainerProvider.notifier).loadTemplate(saved);
+    _syncControllers(ref.read(tempoTrainerProvider));
+    _showSnack('Created ${saved.name}.');
+  }
+
   Future<void> _saveSessionResult(TempoTrainerState state) async {
     final splits = _parseDurationList(_splitsController.text);
     if (splits.isEmpty) {
@@ -338,6 +405,7 @@ class _TempoTrainerScreenState extends ConsumerState<TempoTrainerScreen> {
     final templatesAsync = ref.watch(tempoTemplatesProvider);
     final resultsAsync = ref.watch(tempoSessionResultsProvider);
     final usrpt = ref.watch(usrptSessionProvider);
+    final cssPreset = _currentCssPreset();
 
     ref.listen(tempoTrainerProvider, (_, next) {
       if (!next.flashActive) return;
@@ -414,6 +482,16 @@ class _TempoTrainerScreenState extends ConsumerState<TempoTrainerScreen> {
                       safetyWarningAcknowledged: value,
                     );
               },
+            ),
+            const SizedBox(height: 16),
+            _CssPaceBuilderPanel(
+              enabled: !state.isRunning,
+              css200Controller: _css200Controller,
+              css400Controller: _css400Controller,
+              nameController: _cssNameController,
+              preset: cssPreset,
+              onChanged: () => setState(() {}),
+              onCreate: () => _createCssTemplate(state),
             ),
             const SizedBox(height: 16),
             _UsrptPanel(
@@ -835,6 +913,106 @@ class _UsrptPanel extends StatelessWidget {
   }
 }
 
+class _CssPaceBuilderPanel extends StatelessWidget {
+  const _CssPaceBuilderPanel({
+    required this.enabled,
+    required this.css200Controller,
+    required this.css400Controller,
+    required this.nameController,
+    required this.preset,
+    required this.onChanged,
+    required this.onCreate,
+  });
+
+  final bool enabled;
+  final TextEditingController css200Controller;
+  final TextEditingController css400Controller;
+  final TextEditingController nameController;
+  final CssPacePreset? preset;
+  final VoidCallback onChanged;
+  final VoidCallback onCreate;
+
+  @override
+  Widget build(BuildContext context) {
+    final currentPreset = preset;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'CSS Pace Builder',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                _NumberField(
+                  controller: css200Controller,
+                  label: '200m sec',
+                  enabled: enabled,
+                  decimal: true,
+                  onChanged: (_) => onChanged(),
+                ),
+                _NumberField(
+                  controller: css400Controller,
+                  label: '400m sec',
+                  enabled: enabled,
+                  decimal: true,
+                  onChanged: (_) => onChanged(),
+                ),
+                SizedBox(
+                  width: 180,
+                  child: TextField(
+                    controller: nameController,
+                    enabled: enabled,
+                    decoration: const InputDecoration(
+                      labelText: 'CSS template',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (currentPreset != null) ...[
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _MetricChip(
+                    label:
+                        '${DurationUtils.formatDuration(currentPreset.pacePer100)}/100m',
+                  ),
+                  _MetricChip(
+                    label:
+                        '25m ${DurationUtils.formatDurationWithCentiseconds(currentPreset.split25)}',
+                  ),
+                  _MetricChip(
+                    label:
+                        '50m ${DurationUtils.formatDurationWithCentiseconds(currentPreset.split50)}',
+                  ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton.icon(
+                onPressed: enabled ? onCreate : null,
+                icon: const Icon(Icons.add_task),
+                label: const Text('Create CSS Template'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _RunPanel extends StatelessWidget {
   const _RunPanel({
     required this.state,
@@ -1099,12 +1277,14 @@ class _NumberField extends StatelessWidget {
     required this.label,
     required this.enabled,
     this.decimal = false,
+    this.onChanged,
   });
 
   final TextEditingController controller;
   final String label;
   final bool enabled;
   final bool decimal;
+  final ValueChanged<String>? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -1115,6 +1295,7 @@ class _NumberField extends StatelessWidget {
         enabled: enabled,
         decoration: InputDecoration(labelText: label),
         keyboardType: TextInputType.numberWithOptions(decimal: decimal),
+        onChanged: onChanged,
       ),
     );
   }
