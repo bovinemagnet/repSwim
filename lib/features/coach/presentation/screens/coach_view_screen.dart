@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
 
+import '../../../profiles/presentation/providers/profile_providers.dart';
 import '../../domain/entities/coach_report.dart';
 import '../../domain/entities/coach_share_category.dart';
 import '../../domain/services/coach_pdf_builder.dart';
@@ -60,14 +61,19 @@ class _CoachViewScreenState extends ConsumerState<CoachViewScreen> {
           return _reportScaffold(context, selected);
         }
 
+        final profilesAsync = ref.watch(profilesProvider);
+        final profiles = profilesAsync.valueOrNull ?? const [];
+
         return Scaffold(
           appBar: _buildAppBar(context, null),
           body: ListView.builder(
             itemCount: ids.length,
             itemBuilder: (context, index) {
               final id = ids[index];
+              final match = profiles.where((p) => p.id == id);
+              final label = match.isNotEmpty ? match.first.displayName : id;
               return ListTile(
-                title: Text(id),
+                title: Text(label),
                 onTap: () => setState(() => _selectedProfileId = id),
               );
             },
@@ -128,11 +134,19 @@ class _CoachViewScreenState extends ConsumerState<CoachViewScreen> {
   // ---------------------------------------------------------------------------
 
   Future<void> _exportPdf(CoachReport report) async {
-    final Uint8List bytes = await const CoachPdfBuilder().build(report);
-    await Printing.sharePdf(
-      bytes: bytes,
-      filename: '${report.profile.displayName}_coach_report.pdf',
-    );
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final Uint8List bytes = await const CoachPdfBuilder().build(report);
+      if (!context.mounted) return;
+      await Printing.sharePdf(
+        bytes: bytes,
+        filename: '${report.profile.displayName}_coach_report.pdf',
+      );
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Could not export PDF')),
+      );
+    }
   }
 }
 

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rep_swim/core/constants/app_constants.dart';
 import 'package:rep_swim/database/app_database.dart';
 import 'package:rep_swim/database/daos/coach_share_dao.dart';
 import 'package:rep_swim/features/coach/domain/entities/coach_share.dart';
@@ -77,5 +78,45 @@ void main() {
     });
     final loaded = await dao.getForProfile('local-default-profile');
     expect(loaded.sharedCategories, {CoachShareCategory.goals});
+  });
+
+  test(
+      'deleting a swimmer_profile cascades to coach_shares via ON DELETE CASCADE',
+      () async {
+    // Save an enabled CoachShare for the default profile.
+    await dao.save(const CoachShare(
+      profileId: kDefaultProfileId,
+      enabled: true,
+      sharedCategories: {CoachShareCategory.goals},
+    ));
+
+    // Confirm the row exists before deletion.
+    final database = await db.database;
+    final beforeRows = await database.query(
+      'coach_shares',
+      where: 'profile_id = ?',
+      whereArgs: [kDefaultProfileId],
+    );
+    expect(beforeRows, hasLength(1));
+
+    // Delete the profile row directly to trigger ON DELETE CASCADE.
+    await database.delete(
+      'swimmer_profiles',
+      where: 'id = ?',
+      whereArgs: [kDefaultProfileId],
+    );
+
+    // The coach_shares row must be gone.
+    final afterRows = await database.query(
+      'coach_shares',
+      where: 'profile_id = ?',
+      whereArgs: [kDefaultProfileId],
+    );
+    expect(afterRows, isEmpty);
+
+    // The DAO must return the disabled default (no row).
+    final share = await dao.getForProfile(kDefaultProfileId);
+    expect(share.enabled, isFalse);
+    expect(share.sharedCategories, isEmpty);
   });
 }

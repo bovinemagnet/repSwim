@@ -21,9 +21,11 @@ final coachReportBuilderProvider = Provider<CoachReportBuilder>((ref) {
 /// Builds a [CoachReport] for the given profile id.
 ///
 /// Reads the profile's [CoachShare] from the DAO and assembles the report via
-/// [CoachReportBuilder].
-final coachReportProvider =
-    FutureProvider.family<CoachReport, String>((ref, profileId) async {
+/// [CoachReportBuilder].  autoDispose ensures a fresh report is built every
+/// time the coach view is opened, preventing stale data after sharing settings
+/// change.
+final coachReportProvider = FutureProvider.autoDispose
+    .family<CoachReport, String>((ref, profileId) async {
   final share = await ref.read(coachShareDaoProvider).getForProfile(profileId);
   final builder = ref.read(coachReportBuilderProvider);
   return builder.build(profileId, share);
