@@ -127,6 +127,7 @@ class AppDatabase {
     await _createRaceTimesTable(db);
     await _createQualificationStandardsTable(db);
     await _createMeetQualificationStandardsTable(db);
+    await _createCoachSharesTable(db);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -184,6 +185,9 @@ class AppDatabase {
     }
     if (oldVersion < 12) {
       await _createTempoTables(db);
+    }
+    if (oldVersion < 13) {
+      await _createCoachSharesTable(db);
     }
   }
 
@@ -483,6 +487,19 @@ class AppDatabase {
         stroke,
         distance,
         course_type
+      )
+    ''');
+  }
+
+  Future<void> _createCoachSharesTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS coach_shares (
+        profile_id TEXT PRIMARY KEY,
+        enabled INTEGER NOT NULL DEFAULT 0,
+        shared_categories_json TEXT NOT NULL DEFAULT '[]',
+        updated_at INTEGER NOT NULL,
+        FOREIGN KEY (profile_id)
+          REFERENCES swimmer_profiles(id) ON DELETE CASCADE
       )
     ''');
   }
