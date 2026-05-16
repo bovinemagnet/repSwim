@@ -1,0 +1,6 @@
+[NOTE]
+====
+This data is scoped to the *active profile*.
+Switching profiles on the xref:profiles.adoc[Profiles] page changes which records are shown and where new entries are saved.
+Each profile maintains its own independent set of sessions, personal bests, and training history.
+====

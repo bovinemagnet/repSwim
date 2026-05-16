@@ -1,0 +1,18 @@
+* xref:index.adoc[Overview]
+* Getting started
+** xref:profiles.adoc[Profiles]
+* Training tools
+** xref:swim-sessions.adoc[Swim sessions]
+** xref:stopwatch.adoc[Stopwatch]
+** xref:interval-timer.adoc[Interval timer]
+** xref:tempo-trainer.adoc[Tempo trainer]
+** xref:dryland.adoc[Dryland training]
+* Records & races
+** xref:personal-bests.adoc[Personal bests]
+** xref:analytics.adoc[Analytics]
+** xref:race-times.adoc[Race times]
+** xref:qualification-standards.adoc[Qualification standards]
+* Data & sync
+** xref:sync-settings.adoc[Sync settings]
+* Contributing
+** xref:contributing.adoc[Adding documentation]

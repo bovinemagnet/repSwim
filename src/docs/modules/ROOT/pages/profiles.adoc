@@ -1,0 +1,139 @@
+= Profiles
+
+A profile represents a single swimmer in repSwim.
+All training data — sessions, personal bests, dryland workouts, race times, and analytics — is stored under a profile, so multiple swimmers can share one device without their records mixing.
+
+== Reaching this page
+
+The Profiles screen is available from the main navigation under the *Profiles* destination (icon: manage accounts).
+Its route is `/profiles`.
+
+On phones the destination appears in the bottom navigation bar.
+On tablets and desktops it appears in the navigation rail on the left-hand side.
+The rail also includes a profile switcher: on desktop (the extended rail) this shows the active swimmer's name with a drop-down arrow, and on tablets it shows an icon-only switcher button.
+Either form opens a menu for changing the active profile without going to the full Profiles screen.
+
+== Common actions
+
+=== Adding a swimmer
+
+Tap the *Add Swimmer* button (floating action button, bottom-right of the screen) to open the *Add swimmer* dialogue.
+Fill in at least the *Name* field — all other fields are optional.
+Tap *Add* to confirm.
+The newly created profile is immediately set as the active profile.
+
+=== Selecting a swimmer
+
+Tap anywhere on a profile card to make that swimmer active.
+The active profile is indicated by a filled avatar with a check mark badge.
+The selection is persisted across app restarts; repSwim saves the chosen profile ID in local app settings and restores it on launch.
+
+On tablet and desktop layouts you can also switch the active swimmer from the profile switcher in the navigation rail without leaving the current screen.
+
+=== Editing a swimmer
+
+Tap the *Edit* icon (pencil outline) on a profile card.
+The *Edit swimmer* dialogue opens pre-filled with the current values.
+Change any fields and tap *Save* to apply.
+
+=== Archiving a swimmer
+
+Tap the *Archive* icon (archive outline) on a profile card.
+A confirmation dialogue appears showing the swimmer's name and noting that their data remains stored but the profile will be hidden from the list.
+Tap *Archive* to confirm, or *Cancel* to dismiss without change.
+
+Two guards prevent accidental data loss:
+
+* The built-in *Default Swimmer* profile can never be archived.
+* The last remaining profile cannot be archived; the app requires at least one swimmer to be present at all times.
+
+If you attempt to archive a profile that either guard protects, repSwim shows the snack-bar message "At least one swimmer profile is required" and the archive confirmation dialogue does not open.
+
+When the archived profile was the active one, the app automatically switches to the first profile remaining in the list (or falls back to the default profile if none remain).
+
+NOTE: Archiving is reversible at the database level — the swimmer's data is retained — but the app provides no UI to unarchive a profile in the current release.
+
+== Important fields
+
+Display name::
+The swimmer's name as shown throughout the app.
+This field is required; the form will not submit if it is empty or contains only whitespace.
+
+Pool length (m)::
+The swimmer's preferred pool length in metres, used as the default when recording sessions.
+Defaults to 25 m.
+Must be a positive whole number.
+
+Preferred strokes::
+A multi-select set of strokes the swimmer focuses on.
+The available choices are: Freestyle, Backstroke, Breaststroke, Butterfly, Individual Medley, and Mixed.
+Any combination may be selected; none is required.
+
+Photo path or URL::
+An optional path to a local image file or a remote image URL.
+When provided, the image is shown as the swimmer's avatar on their profile card and in the navigation rail switcher.
+If the path is empty or the image cannot be loaded, the avatar falls back to the swimmer's initial letter.
+
+Primary events::
+A free-text field describing the swimmer's key competitive events (for example, `100m Freestyle, 200m IM`).
+Optional.
+
+Club or team::
+The name of the swimmer's swimming club or team.
+Optional.
+
+Goals::
+A free-text field for the swimmer's training goals.
+Optional; displayed on the profile card when set.
+
+Notes::
+Free-text notes about the swimmer.
+Optional; displayed on the profile card when set.
+
+== Expected behaviour
+
+=== On save and create
+
+When a new profile is created the app writes it to the local SQLite database, sets it as the active profile, and reloads the profile list.
+When an existing profile is edited and saved, the record is updated in place with a new `updatedAt` timestamp.
+In both cases trailing whitespace is stripped from text fields and empty optional fields are stored as null.
+
+=== Profile scoping
+
+The *active profile* is the cornerstone of how repSwim organises data.
+Every piece of training data in the app is tagged with a profile ID when it is written, and every screen that reads data — sessions, personal bests, dryland workouts, analytics, and race times — filters its queries by the currently active profile ID.
+
+Switching the active profile (by tapping a card on this screen, or using the quick-switch menu in the navigation rail) changes the data visible across the entire app immediately.
+The previously viewed data is not lost; it is simply not shown while a different profile is active.
+Switch back to restore the original view.
+
+This means:
+
+* Each swimmer has their own independent session history.
+* Personal bests are tracked and displayed per swimmer.
+* Dryland workout records belong to the swimmer who was active when they were recorded.
+* Analytics charts and totals reflect only the active swimmer's data.
+* Race-time comparisons are made against the active swimmer's recorded times.
+
+=== Default profile
+
+A built-in profile named *Default Swimmer* (ID `local-default-profile`) is seeded into the database and acts as a safe fallback.
+The app falls back to this profile during startup if no previously saved profile ID can be matched against the current list of profiles.
+The default profile cannot be archived.
+
+=== Startup selection
+
+On launch, repSwim reads the last saved profile ID from app settings.
+If that profile still exists it is activated; otherwise the first profile in the list is activated; if the list is empty the default profile is used.
+This logic ensures the app always has a valid active profile before any data-loading begins.
+
+=== Profile summary on each card
+
+Each profile card shows a live summary line:
+
+* Number of recorded swim sessions.
+* Total distance swum (metres).
+* Number of dryland workouts.
+* Number of personal bests set.
+
+This summary is loaded asynchronously and updates whenever the underlying data changes.

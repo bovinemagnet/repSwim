@@ -1,0 +1,130 @@
+= Race times
+
+Race times let you record official competition results against the active profile.
+Each entry captures the race or meet name, the event (distance and stroke), the pool type, and the finishing time, giving you a permanent log of your competitive history.
+
+== Reaching this page
+
+The Race Times screen is accessible from the bottom navigation bar (or side navigation rail on wider layouts) via the *Races* destination.
+
+[cols="1,3"]
+|===
+|Route |Screen
+
+|`/races`
+|Race times list and management screen
+
+|`/qualification-standards`
+|Qualification standards browser (reachable from the app bar icon on the race times screen)
+|===
+
+include::partial$profile-scoping.adoc[]
+
+== Common actions
+
+=== Browsing race times
+
+The race times list shows all competition results recorded for the active profile.
+A summary bar above the list displays two chips: the count of visible entries out of the total, and the number of course-specific personal bests within the currently filtered set.
+
+Four controls let you narrow and order the list:
+
+Search field:: Free-text search that matches against the race name, stroke, course code, course label, location, and notes.
+Distance filter:: A drop-down that restricts results to a single standard distance (25 m, 50 m, 100 m, 200 m, 400 m, 800 m, or 1500 m), or shows all distances when set to *All*.
+Course filter:: A drop-down that restricts results to a specific course type (Short course meters, Short course yards, or Long course meters), or shows all course types when set to *All courses*.
+Sort:: Orders the list by *Newest* (default), *Oldest*, *Fastest* (ascending time, then most recent on a tie), or *Distance* (ascending distance, then ascending time).
+
+On narrow (phone) layouts, entries appear as cards showing the distance, stroke, race name, course label, date, and finishing time.
+On wide layouts (900 dp and above), the same data is presented as a scrollable table with columns for Date, Race, Event, Course, Time, and Place.
+
+If no entries match the active filters, a placeholder is shown in place of the list.
+
+=== Adding a race time
+
+Tap the *Add Race* floating action button to open the *Add race time* dialogue.
+Complete all required fields and tap *Add* to save the entry.
+
+=== Editing a race time
+
+Tap the edit icon (pencil) on a card or table row to open the *Edit race time* dialogue pre-filled with the existing values.
+Amend any fields and tap *Save* to apply the changes.
+
+=== Deleting a race time
+
+Tap the delete icon (bin) on a card or table row.
+A confirmation dialogue (*Delete race time?*) names the race and distance before asking you to confirm.
+Tap *Delete* to remove the entry permanently, or *Cancel* to dismiss without change.
+
+=== Viewing qualification standards
+
+The app bar contains a trophy icon that navigates to `/qualification-standards`, where you can browse official qualifying times.
+
+== Important fields
+
+Race or meet:: (`raceName`) — The name of the competition or swim meet where the result was recorded.
+This field is required and must not be empty.
+
+Person / profile:: (`profileId`) — The profile that owns this race time.
+The active profile is shown as a chip with a person icon at the top of the add/edit dialogue.
+The record is associated with whichever profile is active when it is saved.
+
+Event date:: (`eventDate`) — The date on which the race took place.
+Displayed in `d MMM yyyy` format (for example, 3 Jan 2025).
+Tapping the date tile in the form opens a calendar picker.
+You can record dates up to one year in the future, allowing entry of upcoming competition results in advance.
+
+Distance:: (`distance`) — The race distance in metres, entered as a positive integer.
+The filter bar offers the standard distances of 25 m, 50 m, 100 m, 200 m, 400 m, 800 m, and 1500 m, but any positive distance value may be typed into the form.
+
+Stroke:: (`stroke`) — The swimming stroke for the event.
+Available values are Freestyle, Backstroke, Breaststroke, Butterfly, Individual Medley, and Mixed.
+
+Course type:: (`course`) — The pool configuration in which the race was held.
+This satisfies the short-course / long-course selection requirement.
+Three options are available:
++
+[cols="1,2"]
+|===
+|Code |Label
+
+|`SCM`
+|Short course meters (25 m pool)
+
+|`SCY`
+|Short course yards
+
+|`LCM`
+|Long course meters (50 m pool)
+|===
++
+The default when adding a new entry is *Short course meters*.
+
+Time:: (`time`) — The finishing time for the race, entered as separate *Min*, *Sec*, and *Csec* (centiseconds) fields.
+The time must be greater than zero.
+Seconds must be in the range 0–59, and centiseconds must be in the range 0–99.
+Stored internally in milliseconds; displayed throughout the app in `m:ss.cc` format.
+
+Place:: (`placement`) — Optional finishing position within the event heat or race.
+Must be a positive integer when provided.
+Displayed as a dash (`-`) when not recorded.
+
+Location:: (`location`) — Optional name of the venue or facility where the meet was held.
+Included in the free-text search index.
+
+Notes:: (`notes`) — Optional free-text remarks about the race (for example, conditions, equipment, or context).
+Accepts up to two lines in the form.
+Included in the free-text search index.
+Stored as `null` when left empty rather than as an empty string.
+
+== Expected behaviour
+
+Saving:: On a successful save, the new or updated entry appears immediately in the race times list under the active profile.
+No snack-bar confirmation is shown; the dialogue closes and the list refreshes.
+Validation prevents saving when the race name is empty, the distance is not a positive integer, or the time is zero.
+
+Deleting:: Deletion requires explicit confirmation via a dialogue that names the race and distance being removed.
+Once confirmed, the record is permanently deleted and the list refreshes to reflect the removal.
+The action cannot be undone.
+
+Course-specific bests:: The summary bar recalculates the count of course-specific bests each time the visible list changes.
+A best is the fastest recorded time for a unique combination of profile, stroke, distance, and course type.

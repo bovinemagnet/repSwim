@@ -1,0 +1,82 @@
+= Personal bests
+
+Personal bests give you a clear view of your fastest recorded time for every stroke and distance combination you have swum.
+Records are set and updated automatically — no manual entry is required.
+
+== Reaching this page
+
+The Personal Bests screen is accessible from the bottom navigation bar (or side navigation rail on wider layouts) via the *Personal Bests* destination.
+
+[cols="1,3"]
+|===
+|Route |Screen
+
+|`/pb`
+|Personal bests list
+|===
+
+include::partial$profile-scoping.adoc[]
+
+== Common actions
+
+=== Viewing personal bests
+
+The screen displays all personal bests for the active profile.
+Records are grouped by stroke, and within each group they are sorted by distance in ascending order.
+Each entry shows:
+
+* The distance in metres.
+* The best time, formatted as minutes and seconds (for example `1:45`).
+* The pace per 100 m derived from that best time.
+* The date on which the best time was achieved.
+
+When no personal bests exist yet, the screen shows an empty-state message prompting you to save swim sessions with lap times so that records can be detected automatically.
+
+=== Auto-detection from swim sessions
+
+Personal bests are not entered manually.
+Instead, every time you save a xref:swim-sessions.adoc[swim session], the app inspects each lap in that session and compares its time against the stored best for the same stroke and distance.
+If a lap is faster — or if no record exists yet for that stroke-and-distance pair — a new personal best is created or the existing one is replaced.
+
+When a session is *deleted*, personal bests for the active profile are rebuilt from scratch by replaying all remaining sessions in chronological order, ensuring the records always reflect the actual fastest laps in the database.
+
+NOTE: Because detection happens at lap level, a single session can produce multiple new personal bests across different distances in the same stroke.
+
+== Important fields
+
+`stroke`::
+The swimming stroke for the personal best, matching the stroke recorded on the source session.
+Examples include Freestyle, Backstroke, Breaststroke, Butterfly, Individual Medley, and Mixed.
+
+`distance`::
+The lap distance in metres at which the best time was set.
+This is an integer value taken directly from the lap record.
+
+`bestTime`::
+The fastest recorded duration for this stroke and distance combination.
+Displayed in the UI as minutes and seconds (for example `1:45`) alongside the derived pace per 100 m.
+
+`achievedAt`::
+The date of the swim session that produced this best time.
+
+`profileId`::
+The profile that owns this record.
+Personal bests are always scoped to the active profile and are never shared across profiles.
+
+== Expected behaviour
+
+Uniqueness::
+Only one personal best record exists per `(stroke, distance)` pair per profile.
+When a new best is detected, the existing record is replaced in full — the previous time is not retained.
+
+Faster time wins::
+A lap time must be strictly faster (a shorter duration) than the current stored best in order to replace it.
+Equal times do not replace an existing record.
+
+Multiple bests in one session::
+If several laps in the same session each set a new best at different distances, all of them are recorded.
+Within a single session, only the fastest lap at any given distance is kept — a slower later lap cannot overwrite a faster earlier one found in the same save.
+
+Rebuild on deletion::
+Deleting a swim session triggers a full rebuild of personal bests from the remaining sessions for the active profile.
+This ensures that if the deleted session contained your fastest time, the next-fastest lap from another session takes its place automatically.
