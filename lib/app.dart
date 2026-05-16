@@ -19,6 +19,8 @@ import 'features/race/presentation/screens/qualification_standards_screen.dart';
 import 'features/race/presentation/screens/race_times_screen.dart';
 import 'features/analytics/presentation/screens/analytics_screen.dart';
 import 'features/dryland/presentation/screens/dryland_screen.dart';
+import 'features/coach/presentation/screens/coach_sharing_settings_screen.dart';
+import 'features/coach/presentation/screens/coach_view_screen.dart';
 import 'features/settings/presentation/screens/sync_settings_screen.dart';
 import 'features/profiles/presentation/providers/profile_providers.dart';
 
@@ -106,6 +108,16 @@ final _router = GoRouter(
     GoRoute(
       path: '/settings/sync',
       builder: (context, state) => const SyncSettingsScreen(),
+    ),
+    GoRoute(
+      path: '/coach',
+      builder: (context, state) => const CoachViewScreen(),
+    ),
+    GoRoute(
+      path: '/coach/sharing/:profileId',
+      builder: (context, state) => CoachSharingSettingsScreen(
+        profileId: state.pathParameters['profileId']!,
+      ),
     ),
   ],
 );
