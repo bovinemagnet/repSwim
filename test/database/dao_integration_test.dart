@@ -274,11 +274,34 @@ void main() {
           notes: 'USRPT 100m target; outcomes 1:P,2:F',
         ),
       );
+      await dao.insertTempoSessionResult(
+        TempoSessionResult(
+          id: 'ramp-result-1',
+          profileId: 'profile-1',
+          mode: TempoMode.strokeRate,
+          startedAt: now.add(const Duration(minutes: 10)),
+          targetDistanceMeters: 25,
+          poolLengthMeters: 25,
+          targetTime: const Duration(seconds: 18),
+          targetStrokeRate: 60,
+          actualSplits: const [
+            Duration(seconds: 18),
+            Duration(seconds: 17),
+          ],
+          strokeCounts: const [18, 20],
+          rpe: 6,
+          notes: 'Stroke-rate ramp; rep 1: 60.0 spm',
+        ),
+      );
       final results = await dao.getTempoSessionResults('profile-1');
-      expect(results, hasLength(2));
-      expect(results.first.id, 'usrpt-result-1');
-      expect(results.first.strokeCounts, [1, 0]);
-      expect(results.first.notes, contains('outcomes 1:P,2:F'));
+      expect(results, hasLength(3));
+      expect(results.first.id, 'ramp-result-1');
+      expect(results.first.strokeCounts, [18, 20]);
+      expect(results.first.rpe, 6);
+      expect(results.first.notes, contains('Stroke-rate ramp'));
+      expect(results[1].id, 'usrpt-result-1');
+      expect(results[1].strokeCounts, [1, 0]);
+      expect(results[1].notes, contains('outcomes 1:P,2:F'));
       expect(results.last.templateId, template.id);
       expect(results.last.actualSplits.last.inMilliseconds, 22400);
       expect(results.last.strokeCounts, [18, 19]);
@@ -286,6 +309,8 @@ void main() {
       expect(await dao.getTempoSessionResults('profile-2'), hasLength(1));
 
       await dao.deleteTempoSessionResult('tempo-result-1', 'profile-1');
+      await dao.deleteTempoSessionResult('usrpt-result-1', 'profile-1');
+      await dao.deleteTempoSessionResult('ramp-result-1', 'profile-1');
       expect(await dao.getTempoSessionResults('profile-1'), isEmpty);
       expect(await dao.getTempoSessionResults('profile-2'), hasLength(1));
     });

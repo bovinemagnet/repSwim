@@ -154,6 +154,46 @@ Controls:
 *Start* / *Pause*:: Starts or pauses cue playback.
 *Reset*:: Stops playback and clears beat count and elapsed cue time.
 
+== Stroke-rate ramp
+
+The Stroke-Rate Ramp panel runs a cadence-efficiency test across a series of
+repeats, raising the target stroke rate on each one.
+It accepts:
+
+`Start spm`:: Stroke-rate target for the first repetition.
+Defaults to `60`.
+`Increment spm`:: Amount the stroke-rate target rises on each subsequent
+repetition.
+Defaults to `4`.
+`Ramp repeat m`:: Distance swum for each repetition.
+Defaults to `25`.
+`Ramp reps`:: Number of repetitions in the ramp.
+Defaults to `6`.
+`Ramp rest sec`:: Rest between repetitions.
+Defaults to `20`.
+
+Each repetition target is `Start spm + Increment spm × (repetition − 1)`, so a
+default ramp runs six 25 m repeats at 60, 64, 68, 72, 76, and 80 strokes per
+minute.
+Applying the ramp configures the live Stroke Rate cue to the current
+repetition's target.
+
+For each repetition you log the split time and stroke count, and optionally an
+RPE (1–10) and notes.
+From those, the panel derives and displays:
+
+* *Pace per 100 m* — the split scaled to 100 m.
+* *Stroke rate* — the repetition's target cadence.
+* *Distance per stroke* — repeat distance divided by stroke count.
+
+A summary highlights the fastest pace and the best distance per stroke across
+all logged repetitions, each with the stroke rate at which it was achieved.
+
+Ramp results save through the same offline tempo result store as other sessions.
+Saved ramp results are profile-scoped, use Stroke Rate mode, store the actual
+split and stroke count for each repetition, and record the ramp protocol and
+per-repetition detail in the result notes.
+
 == USRPT race pace
 
 The USRPT Race Pace card builds repeat targets from an event distance and event
@@ -298,6 +338,5 @@ alongside the existing interval and dryland template storage.
 
 The following capabilities are not yet implemented:
 
-* Stroke-rate ramp test preset.
 * Per-rep or per-segment race modelling.
 * Wearable, Bluetooth, or external device integration.

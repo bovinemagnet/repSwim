@@ -7,6 +7,7 @@ import 'package:rep_swim/features/tempo/domain/entities/tempo_mode.dart';
 import 'package:rep_swim/features/tempo/domain/entities/tempo_session_result.dart';
 import 'package:rep_swim/features/tempo/domain/entities/tempo_template.dart';
 import 'package:rep_swim/features/tempo/domain/services/css_pace_calculator.dart';
+import 'package:rep_swim/features/tempo/domain/services/stroke_rate_ramp_calculator.dart';
 import 'package:rep_swim/features/tempo/domain/services/usrpt_calculator.dart';
 import 'package:rep_swim/features/tempo/presentation/providers/tempo_template_providers.dart';
 import 'package:rep_swim/features/tempo/presentation/providers/tempo_trainer_provider.dart';
@@ -258,6 +259,82 @@ void main() {
       ).called(1);
     });
 
+    test('saves stroke-rate ramp result with rep data and sync payload',
+        () async {
+      final dao = _MockTrainingTemplateDao();
+      final queue = _MockSyncQueueDao();
+      when(() => dao.getTempoSessionResults(any()))
+          .thenAnswer((_) async => [_tempoResult()]);
+      when(() => dao.insertTempoSessionResult(any())).thenAnswer((_) async {});
+      when(
+        () => queue.enqueue(
+          profileId: any(named: 'profileId'),
+          entityType: any(named: 'entityType'),
+          entityId: any(named: 'entityId'),
+          operation: any(named: 'operation'),
+          payload: any(named: 'payload'),
+        ),
+      ).thenAnswer((_) async {});
+
+      final notifier = TempoSessionResultsNotifier(
+        dao,
+        'profile-1',
+        syncQueueDao: queue,
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      final protocol = const StrokeRateRampCalculator().generate(
+        startStrokeRate: 60,
+        increment: 4,
+        repeatDistanceMeters: 25,
+        reps: 2,
+        restDuration: const Duration(seconds: 20),
+      );
+      final saved = await notifier.saveStrokeRateRampResult(
+        protocol: protocol,
+        logs: const [
+          StrokeRateRampRepLog(
+            index: 1,
+            strokeRate: 60,
+            repeatDistanceMeters: 25,
+            split: Duration(seconds: 18),
+            strokeCount: 18,
+            rpe: 5,
+            notes: 'smooth',
+          ),
+          StrokeRateRampRepLog(
+            index: 2,
+            strokeRate: 64,
+            repeatDistanceMeters: 25,
+            split: Duration(seconds: 17),
+            strokeCount: 20,
+            rpe: 7,
+          ),
+        ],
+      );
+
+      expect(saved.mode, TempoMode.strokeRate);
+      expect(saved.targetStrokeRate, 60);
+      expect(saved.actualSplits, const [
+        Duration(seconds: 18),
+        Duration(seconds: 17),
+      ]);
+      expect(saved.strokeCounts, [18, 20]);
+      expect(saved.rpe, 6);
+      expect(saved.notes, contains('rep 1: 60.0 spm'));
+      expect(saved.notes, contains('dps 1.39'));
+      verify(() => dao.insertTempoSessionResult(any())).called(1);
+      verify(
+        () => queue.enqueue(
+          profileId: 'profile-1',
+          entityType: 'tempo_session_result',
+          entityId: saved.id,
+          operation: SyncOperation.create,
+          payload: any(named: 'payload'),
+        ),
+      ).called(1);
+    });
+
     test('saves USRPT result with pass fail outcomes and sync payload',
         () async {
       final dao = _MockTrainingTemplateDao();
@@ -356,3 +433,5 @@ void main() {
       verify(() => dao.getTempoSessionResults('profile-1'))
           .called(greaterThanOrEqualTo(2));
     });
+  });
+}

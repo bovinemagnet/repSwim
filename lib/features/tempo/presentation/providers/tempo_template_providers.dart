@@ -12,6 +12,7 @@ import '../../domain/entities/tempo_mode.dart';
 import '../../domain/entities/tempo_session_result.dart';
 import '../../domain/entities/tempo_template.dart';
 import '../../domain/services/css_pace_calculator.dart';
+import '../../domain/services/stroke_rate_ramp_calculator.dart';
 import '../../domain/services/usrpt_calculator.dart';
 import 'tempo_trainer_provider.dart';
 
@@ -209,6 +210,55 @@ class TempoSessionResultsNotifier
     return result;
   }
 
+  Future<TempoSessionResult> saveStrokeRateRampResult({
+    required StrokeRateRampProtocol protocol,
+    required List<StrokeRateRampRepLog> logs,
+    String? notes,
+  }) async {
+    final now = DateTime.now().toUtc();
+    final lines = [
+      'Stroke-rate ramp ${protocol.repeatDistanceMeters}m x ${protocol.reps}; '
+          'start ${protocol.startStrokeRate.toStringAsFixed(1)} spm; '
+          'increment ${protocol.increment.toStringAsFixed(1)} spm; '
+          'rest ${protocol.restDuration.inSeconds}s',
+      for (final log in logs)
+        'rep ${log.index}: ${log.strokeRate.toStringAsFixed(1)} spm, '
+            '${log.split.inMilliseconds}ms, strokes ${log.strokeCount}, '
+            'dps ${log.distancePerStroke.toStringAsFixed(2)}'
+            '${log.rpe == null ? '' : ', rpe ${log.rpe}'}'
+            '${log.notes == null ? '' : ', ${log.notes}'}',
+    ];
+    final trimmedNotes = notes?.trim();
+    if (trimmedNotes != null && trimmedNotes.isNotEmpty) {
+      lines.add(trimmedNotes);
+    }
+
+    final result = TempoSessionResult(
+      id: _uuid.v4(),
+      profileId: _profileId,
+      mode: TempoMode.strokeRate,
+      startedAt: now,
+      completedAt: now,
+      targetDistanceMeters: protocol.repeatDistanceMeters,
+      poolLengthMeters: protocol.repeatDistanceMeters,
+      targetTime: logs.isEmpty ? Duration.zero : logs.first.split,
+      targetStrokeRate: protocol.startStrokeRate,
+      actualSplits: [for (final log in logs) log.split],
+      strokeCounts: [for (final log in logs) log.strokeCount],
+      rpe: _averageRpe(logs),
+      notes: lines.join('\n'),
+    );
+    await _dao.insertTempoSessionResult(result);
+    await _queueChange(
+      entityType: 'tempo_session_result',
+      entityId: result.id,
+      operation: SyncOperation.create,
+      payload: tempoSessionResultPayload(result),
+    );
+    await load();
+    return result;
+  }
+
   Future<TempoSessionResult> saveUsrptResult({
     required UsrptRacePacePreset preset,
     required List<UsrptRepOutcome> outcomes,
@@ -275,6 +325,13 @@ class TempoSessionResultsNotifier
     );
     await load();
     return result;
+  }
+
+  int? _averageRpe(List<StrokeRateRampRepLog> logs) {
+    final rpes = logs.map((log) => log.rpe).whereType<int>().toList();
+    if (rpes.isEmpty) return null;
+    final total = rpes.fold<int>(0, (sum, value) => sum + value);
+    return (total / rpes.length).round();
   }
 
   Future<void> deleteResult(String id) async {
