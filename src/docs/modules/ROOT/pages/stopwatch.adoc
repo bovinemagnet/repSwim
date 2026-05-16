@@ -1,0 +1,113 @@
+= Stopwatch
+
+The Stopwatch screen lets you time a swim session with centisecond precision, record lap splits as you go, and save the result as a full swim-session record including stroke type, lap distance, and optional notes.
+
+== Reaching this page
+
+The screen is registered at the `/stopwatch` route.
+It is reachable from the bottom navigation bar (or the navigation rail on wider layouts) and sits alongside the main app destinations defined in `adaptive_shell.dart`.
+
+== Common actions
+
+=== Starting the stopwatch
+
+Tap the large *Start* button (filled circle, centre of the control row).
+The timer begins immediately and the button label changes to *Pause*.
+
+=== Pausing and resuming
+
+Tap *Pause* to freeze the display.
+The accumulated time is preserved exactly; tapping *Start* again resumes from where you paused.
+Multiple pause-and-resume cycles are cumulative — the final elapsed time is the sum of all running segments.
+
+=== Recording a lap
+
+Tap the *Lap* button (outlined circle, right of the control row) while the stopwatch is running.
+Laps can only be recorded while the timer is running; the button is disabled when paused.
+Each tap marks the current elapsed time, and a new row is appended to the lap list below the controls.
+
+=== Resetting
+
+Tap the *Reset* button (outlined circle, left of the control row) at any point.
+This stops the timer and clears all elapsed time and lap records immediately, without a confirmation prompt.
+
+=== Saving a session
+
+Tap the *Save* action in the top-right corner of the app bar.
+This action is available only after the stopwatch has been started (i.e. elapsed time is non-zero).
+If the stopwatch is still running when you tap Save, it is paused automatically before the save dialogue opens.
+
+The *Save Swim Session* dialogue collects:
+
+[cols="1,2,1", options="header"]
+|===
+| Field | Description | Default
+
+| Stroke
+| Dropdown: Freestyle, Backstroke, Breaststroke, Butterfly, Individual Medley, or Mixed.
+| Freestyle
+
+| Distance per lap (m)
+| Whole number of metres swum per recorded lap.
+| 50
+
+| Notes (optional)
+| Free-text remarks attached to the session.
+| Empty
+|===
+
+Confirming the dialogue writes a swim session and one `Lap` record per split to local storage, then checks whether any personal bests have been beaten.
+If new personal bests are detected they are saved automatically and a notification is shown.
+The stopwatch is reset after a successful save.
+
+== On-screen information
+
+=== Elapsed time display
+
+The large time display at the top of the screen shows elapsed time in the format `HH:MM:SS.cc` (hours, minutes, seconds, centiseconds).
+The display style can be changed to one of five visual themes:
+
+[cols="1,2", options="header"]
+|===
+| Style | Appearance
+
+| Standard
+| Plain monospace digits on a themed container.
+
+| Nixie
+| Warm amber glow on a dark background, resembling a Nixie tube.
+
+| VFD (Vacuum Fluorescent)
+| Cyan phosphor glow on a near-black background.
+
+| Numitron
+| Warm orange-white incandescent filament appearance.
+
+| Split-flap
+| Light digits on dark segmented tiles, reminiscent of departure-board displays.
+|===
+
+The selected display style is persisted in app settings and restored on next launch.
+
+=== Lap list
+
+Once at least one lap has been recorded, a scrollable list appears beneath the controls showing all recorded laps in reverse order (most recent first).
+Each row displays:
+
+* *Split time* — the duration of that lap alone (elapsed time since the previous lap mark, or since the start for lap 1).
+* *Total time* — the cumulative elapsed time at the moment the lap was recorded (shown in smaller trailing text).
+
+The header row shows the total lap count.
+
+When no laps have been recorded, a placeholder message reads _"Press Start, then Lap to record splits"_.
+
+== Expected behaviour
+
+* The underlying timer ticks every 10 milliseconds using a `dart:async` `Timer.periodic` call; displayed centiseconds therefore update at up to 100 Hz but visual refresh is subject to Flutter's frame rate.
+* Pausing and resuming accumulates elapsed time accurately using wall-clock differences; there is no drift between pause cycles.
+* Lap times are stored as cumulative elapsed durations; the displayed split times are derived by subtracting adjacent markers.
+* When a session is saved, total distance is calculated as `distance per lap × number of laps` (including the implicit final lap from the last marker to the total elapsed time if no explicit final lap was recorded).
+* No data is written to storage until the Save dialogue is confirmed. Resetting, navigating away, or closing the app before saving discards all recorded times.
+
+NOTE: The stopwatch state is held in a Riverpod `StateNotifier` scoped to the running app.
+Navigating away from the screen does not stop the timer, but the state is lost if the app process is terminated.

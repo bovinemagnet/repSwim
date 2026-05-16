@@ -1,0 +1,129 @@
+= Swim sessions
+
+Swim sessions are the core training record in repSwim.
+Each session captures the stroke, date and time, and one or more individual laps, from which the app derives total distance, total time, and pace.
+
+== Reaching this page
+
+The session list is accessible from the bottom navigation bar (or side navigation rail on wider layouts) via the *Sessions* destination.
+
+[cols="1,3"]
+|===
+|Route |Screen
+
+|`/sessions`
+|Session history list
+
+|`/sessions/:id`
+|Detail view for a single session
+
+|`/swim`
+|Create a new session
+
+|`/sessions/:id/edit`
+|Edit an existing session
+|===
+
+include::partial$profile-scoping.adoc[]
+
+== Common actions
+
+=== Browsing sessions
+
+The *Session History* screen shows all recorded sessions for the active profile.
+A summary bar below the filter controls shows how many sessions are visible out of the total, along with the combined distance and time across the currently filtered set.
+
+Three filter controls are available:
+
+Search field:: Free-text search that matches against stroke, notes, and session date (formatted as `yyyy-MM-dd`).
+Stroke filter:: A drop-down that narrows the list to a single stroke, or shows all strokes when set to *All strokes*.
+Date range:: Opens a calendar picker.
+Selecting a range restricts the list to sessions whose date falls within it.
+A close button clears the range filter.
+
+On narrow (phone) layouts, sessions appear as cards showing total distance, stroke, date, and duration.
+On wide layouts (900 dp and above), the same data is presented as a scrollable table with columns for Date, Stroke, Distance, Time, Pace, Laps, and Notes.
+
+Tapping a card or table row navigates to the session detail screen.
+
+==== Exporting sessions
+
+The share icon in the app bar copies the currently filtered sessions to the clipboard as CSV.
+The CSV includes the following columns: `date`, `stroke`, `total_distance_meters`, `total_time_seconds`, `pace_per_100m`, `laps`, `notes`.
+
+NOTE: If no sessions match the active filters, the export action shows a snack-bar message and copies nothing to the clipboard.
+
+=== Viewing a session
+
+The *Session Details* screen opens when you tap a session from the list.
+It displays:
+
+* A summary card showing stroke, full date and time, total distance, total time, pace per 100 m, and lap count.
+* A notes card (only shown when notes are present).
+* An individual tile for every lap, numbered sequentially, showing the lap's distance, pace per 100 m, and duration.
+
+Two actions are available from the app bar:
+
+Edit:: Navigates to `/sessions/:id/edit` to open the session in the editor.
+Delete:: Opens a confirmation dialogue (*Delete session?*) before removing the session.
+
+=== Creating or editing a session
+
+The *New Swim Session* screen (`/swim`) and *Edit Swim Session* screen (`/sessions/:id/edit`) share the same form.
+The app bar title reflects whether you are creating or editing.
+
+The form contains:
+
+Stroke:: A drop-down selector.
+Available values are Freestyle, Backstroke, Breaststroke, Butterfly, Individual Medley, and Mixed.
+
+Date and time:: Displays the current date and time (or the existing session date when editing).
+Tapping the field opens a date picker followed by a time picker.
+
+Notes:: An optional free-text field for any remarks about the session.
+
+Laps section:: Lists all laps added so far.
+A running *totals banner* above the lap list shows the accumulated distance, time, and pace per 100 m as you enter laps.
+
+The *Add Lap* button appends a new lap entry pre-filled with the preferred pool length from the active profile.
+Each lap card collects:
+
+* Distance in metres (must be a positive integer).
+* Time in minutes and seconds (the combined time must be greater than zero; either field may be left blank as long as the other is non-zero).
+
+Individual laps can be removed with the delete icon on their card.
+
+Tapping *Save* in the app bar validates the form and requires at least one lap to be present.
+On success the app saves the session, rebuilds personal bests, and returns to the previous screen.
+
+== Important fields
+
+`id`:: Unique identifier for the session (UUID v4).
+`profileId`:: The profile that owns this session.
+Determines which profile's session list the record appears in.
+`date`:: Date and time the session took place.
+`stroke`:: The swimming stroke for the session (see <<Creating or editing a session>> for the full list of allowed values).
+`totalDistance`:: Sum of all lap distances in metres.
+Derived from laps at save time.
+`totalTime`:: Sum of all lap durations.
+Derived from laps at save time.
+`laps`:: Ordered list of `Lap` records belonging to the session.
+`notes`:: Optional free-text remarks.
+Omitted from the session record when empty.
+
+Each `Lap` record contains:
+
+`lapNumber`:: Sequential position within the session, starting at 1.
+`distance`:: Lap distance in metres.
+`time`:: Lap duration.
+
+== Expected behaviour
+
+Saving:: On a successful save, personal bests are automatically recalculated across all sessions for the active profile.
+A snack-bar confirms whether the session was created or updated.
+Deleting:: Deletion requires confirmation via a dialogue.
+Once confirmed, the session and all its lap records are removed.
+Personal bests are then rebuilt from the remaining sessions.
+A snack-bar confirms the deletion and the app returns to the session list.
+Cascade removal:: Laps are stored with a foreign-key reference to their parent session.
+The database schema enforces `ON DELETE CASCADE`, so deleting a session automatically removes all its associated laps.

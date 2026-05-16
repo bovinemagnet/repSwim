@@ -1,0 +1,128 @@
+= Adding documentation
+
+This page is for contributors who want to document a new repSwim screen or feature.
+It explains where files belong, what a standard page looks like, and how to verify the result.
+
+== Documentation structure
+
+All documentation lives under `src/docs/modules/ROOT/`.
+The key directories are:
+
+`pages/`::
+One `.adoc` file per app screen or feature.
+This is where you will create your new page.
+
+`partials/`::
+Reusable AsciiDoc fragments included with `include::partial$<filename>.adoc[]`.
+The `profile-scoping.adoc` partial, for example, explains how the active profile controls which data is displayed; include it on any page that shows per-profile data.
+
+`nav.adoc`::
+The navigation tree.
+Every page must have an entry here, otherwise it is unreachable in the published site.
+
+`images/`::
+Screenshots and diagrams referenced from pages with the `image::` macro.
+
+== Adding a page for a new feature
+
+. Create a new `.adoc` file under `src/docs/modules/ROOT/pages/`.
+Name it after the feature in lowercase with hyphens, for example `swim-session.adoc`.
+
+. Open the file and follow the standard page structure:
++
+[source,asciidoc]
+----
+= <Screen name>
+
+<One or two sentences describing the purpose of this screen.>
+
+== Reaching this page
+
+<Navigation path, route, and layout differences (phone vs tablet).>
+
+== Common actions
+
+<One subsection per key action. Use === for each sub-heading.>
+
+== Important fields
+
+<A description list — one term per field, definition below it.>
+
+== Expected behaviour
+
+<What happens after each action: saves, validations, error states.>
+----
+
+. If the screen shows data that is filtered by the active swimmer, add the profile-scoping note near the top of the relevant section:
++
+[source,asciidoc]
+----
+include::partial$profile-scoping.adoc[]
+----
+
+. Add an `xref:` entry to `src/docs/modules/ROOT/nav.adoc` so the page appears in the navigation.
+A minimal entry looks like this:
++
+[source,asciidoc]
+----
+* xref:swim-session.adoc[Swim session]
+----
++
+Place it in the correct logical group relative to the existing entries.
+If you need to introduce a new group, use the `.Group title` syntax on the line above the first entry in that group.
+
+. Build and validate the documentation as described in <<building-the-documentation>>.
+The build must complete without warnings or errors before your change is considered done.
+
+== Conventions
+
+British spelling::
+Use British spellings throughout: behaviour, organise, colour, recognise, initialise, catalogue.
+Do not correct tool or command names (such as `flutter analyze`) that use American spelling by design.
+
+Sentence-case headings::
+Write headings in sentence case: `== Common actions`, not `== Common Actions`.
+The page title (level 0, `=`) follows the same rule.
+
+No skipped heading levels::
+A page with a `=` title must use `==` for its first sub-headings, `===` for the next level down, and so on.
+Jumping from `==` to `====` is not permitted.
+
+Cross-references::
+Always use `xref:` to link between pages.
+Never use raw file paths or relative URLs.
++
+[source,asciidoc]
+----
+xref:profiles.adoc[Profiles]
+----
++
+For an anchor within the same page: `<<section-id>>`.
+
+Source blocks::
+Always tag a source block with a language identifier so syntax highlighting works:
++
+[source,asciidoc]
+----
+[source,dart]
+----
+
+[#building-the-documentation]
+== Building the documentation
+
+Run the following command from the repository root:
+
+[source,bash]
+----
+npm run docs:build
+----
+
+Alternatively, invoke Antora directly:
+
+[source,bash]
+----
+npx antora antora-playbook.yml
+----
+
+A successful build exits with code `0` and prints no warnings about unresolved cross-references or missing includes.
+If any warnings appear, fix them in source order — earlier errors often cause later ones — then re-run the build before declaring the work complete.

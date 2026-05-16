@@ -1,0 +1,303 @@
+= Tempo trainer
+:description: Configure and run rhythm cues for swim cadence, wall pacing, and breathing rhythm.
+
+Tempo Trainer is an offline-first training screen for configuring and running
+rhythm cues for swim cadence, wall pacing, and breathing rhythm.
+It is available from the Home screen quick actions and directly at the `/tempo` route.
+
+The screen provides configurable cue timing, phone cue outputs (sound, vibration,
+visual flash, and voice), reusable templates, basic result logging, and CSV export
+for entered split data.
+
+include::partial$profile-scoping.adoc[]
+
+== Modes
+
+Tempo Trainer supports three modes, selected from a segmented control at the top of
+the screen.
+The mode cannot be changed while the cue player is running.
+
+=== Stroke rate
+
+Stroke Rate mode cues a regular beat from the configured strokes per minute.
+
+.Example values
+[cols="1,1"]
+|===
+|Field |Value
+
+|Stroke/min
+|`60`
+
+|Cue interval
+|`1.00` s
+
+|Accent every
+|`4`
+|===
+
+This mode is intended for cadence work, such as holding a target hand-entry or
+stroke rhythm.
+The run panel also shows the calculated strokes per minute derived from the current
+cue interval.
+
+=== Lap pace
+
+Lap Pace mode cues each target wall split calculated from the configured pool
+length, target distance, and target time.
+
+.Example values
+[cols="1,1"]
+|===
+|Field |Value
+
+|Pool m
+|`25`
+
+|Target m
+|`100`
+
+|Target sec
+|`88`
+
+|Cue interval
+|`22.00` s
+|===
+
+This mode is intended for "stay with the beep" pacing against a wall target.
+
+=== Breath pattern
+
+Breath Pattern mode cues a breathing rhythm from the configured stroke rate and
+`Breathe every` value.
+
+.Example values
+[cols="1,1"]
+|===
+|Field |Value
+
+|Stroke/min
+|`60`
+
+|Breathe every
+|`3`
+
+|Cue interval
+|`3.00` s
+|===
+
+Breath Pattern mode is for rhythm cues only.
+It is not a breath-hold challenge or hypoxic set builder.
+
+== Session setup
+
+The Session Setup card exposes these inputs:
+
+`Pool m`:: Pool length in metres.
+`Target m`:: Target session or repeat distance in metres.
+`Target sec`:: Target time in seconds.
+`Stroke/min`:: Target stroke rate in strokes per minute.
+`Breathe every`:: Number of strokes between breath cues.
+`Accent every`:: Beat interval for accent cues.
+
+All numeric configuration values must be positive.
+Invalid setup values show `Enter valid tempo values.` and are not applied.
+Tap *Apply* to commit the values to the live trainer state.
+
+== Cue outputs
+
+Cue output settings are configured with filter chips in the Session Setup card:
+
+`Sound`:: Plays a platform system sound on each cue.
+`Vibration`:: Triggers light haptic feedback for normal cues and heavier haptic
+feedback for accent cues.
+`Visual flash`:: Briefly changes the run panel background colour on each cue.
+`Voice alert`:: Sends a semantic announcement for assistive voice output.
+
+Sound, vibration, visual flash, and spoken cues are controlled by
+`TempoCueSettings` and `TempoCuePlayer`.
+The implementation uses Flutter's platform sound, haptic, and semantics APIs
+rather than an external native audio engine.
+
+Cue timing is managed by `TempoCueScheduler`, which uses a stopwatch-backed,
+one-shot timer loop that schedules each cue against its absolute target elapsed
+time.
+If a cue fires late, the next delay is shortened to return to the configured tempo
+rather than carrying the delay forward as `Timer.periodic` would.
+
+== Safety behaviour
+
+Breath Pattern mode requires explicit safety acknowledgement when `Breathe every`
+is `5` or higher.
+Until acknowledged, the *Start* button is disabled.
+
+The safety acknowledgement checkbox states that breath cues are for rhythm only
+and must not be used for max breath holds, underwater distance challenges, or
+unsupervised hypoxic sets.
+
+== Running a session
+
+The run panel shows:
+
+* Current cue label, such as `Stroke cue`, `Wall cue`, `Breathe cue`, or `Accent cue`.
+* Cue interval.
+* Target wall split.
+* Target pace per 100 m.
+* Beat count and elapsed cue time.
+* Calculated strokes per minute (Stroke Rate mode only).
+
+The panel background flashes to the primary container colour on each visual flash
+cue and returns to the surface colour after 120 ms.
+
+Controls:
+
+*Start* / *Pause*:: Starts or pauses cue playback.
+*Reset*:: Stops playback and clears beat count and elapsed cue time.
+
+== USRPT race pace
+
+The USRPT Race Pace card builds repeat targets from an event distance and event
+target time.
+It accepts:
+
+`Event m`:: Race distance in metres.
+`Event sec`:: Race target time in seconds.
+`Repeat m`:: Repetition distance in metres.
+`Rest sec`:: Rest between repetitions in seconds.
+`Fail rule`:: Number of failed repetitions that stops the set.
+
+Tap *Apply USRPT* to calculate the repetition target split from the event pace.
+Applying USRPT also configures the live Lap Pace cue interval for the repeat
+split using the current sound, vibration, visual flash, and voice settings.
+
+The panel shows:
+
+* Repetition distance and target split time.
+* Configured rest duration.
+* Fail count against the fail rule limit, and total passes.
+* Last status, next repetition number, and rest countdown.
+* A chip for each logged repetition showing its index and pass/fail result.
+
+Controls:
+
+*Apply USRPT*:: Calculates and applies the preset; updates the Lap Pace cue interval.
+*Pass Rep* / *Fail Rep*:: Records the outcome of the current repetition.
+When the fail rule is reached, both buttons are disabled.
+*Rest -5s*:: Reduces the rest countdown by five seconds.
+Available while the rest countdown is greater than zero.
+*Clear USRPT*:: Resets all logged outcomes.
+*Save USRPT*:: Saves the logged set as a tempo session result.
+At least one repetition must be logged before saving.
+
+USRPT results save through the same offline tempo result store.
+Saved USRPT results are profile-scoped, use Lap Pace mode, store pass/fail
+outcomes in the saved result notes, and include structured metadata in the queued
+sync payload.
+
+== CSS pace builder
+
+The CSS Pace Builder card accepts recent 200 m and 400 m times in seconds.
+It calculates critical swim speed from the difference between those two times, then
+derives:
+
+* CSS pace per 100 m.
+* 25 m cue target.
+* 50 m cue target.
+
+The calculated values are shown as metric chips below the input fields as you type.
+
+Tap *Create CSS Template* to save the calculated pace as a reusable Lap Pace
+tempo template.
+CSS templates use a 100 m target distance, the calculated pace as target time, and
+the current pool length and cue output settings.
+Creating a template also loads it immediately into the trainer.
+Invalid or impossible inputs are not saved.
+
+== Templates
+
+Tempo configurations can be saved as reusable templates.
+A template stores:
+
+* Name and mode.
+* Pool length, target distance, and target time.
+* Stroke rate and breath interval.
+* Cue output settings (sound, vibration, visual flash, voice, accent interval).
+* Safety acknowledgement state.
+
+Tap *Save* to open a dialog and enter a template name.
+Tap *Load Template* to select a saved template from a popup menu.
+The delete icon opens a popup menu to remove a named template.
+
+Templates are stored in SQLite in the `tempo_templates` table and are scoped to
+the active swimmer profile.
+Template creates and deletes are queued for future sync.
+
+== Session result
+
+The Session Result card lets you enter split data after completing a set:
+
+`Actual splits sec`:: Actual split times in seconds, comma-separated (for example `22.5, 22.9, 23.1, 22.8`).
+`Stroke counts`:: Stroke count per length, comma-separated (for example `18, 19, 20, 20`).
+`RPE 1-10`:: Rate of perceived exertion from 1 to 10; leave blank to omit.
+`Notes`:: Free-text notes.
+
+At least one actual split is required to save a result.
+RPE must be blank or a whole number in the range 1–10.
+The *Save Result* button is disabled while the cue player is running.
+
+Saved results are stored in SQLite in `tempo_session_results` and are scoped to
+the active swimmer profile.
+Result creates and deletes are queued for future sync.
+
+== Tempo history
+
+The *History* icon in the app bar opens the Tempo History screen at `/tempo/results`.
+Tempo History shows saved results newest first.
+Each row displays the mode, target distance, date, number of splits, target pace, and RPE.
+
+Tapping a row opens the result detail screen at `/tempo/results/:id`, which shows:
+
+* A summary card with mode, date and time, pool length, target distance, target
+  time, target pace, target stroke rate, and RPE.
+* A *Notes* card (when notes are present).
+* Per-split rows showing the actual split time, target split time, split error
+  (signed), stroke count, and an on-pace/off-pace indicator.
+  A split is considered on pace when its error is within ±500 ms of the target.
+
+Saved results can be deleted from the detail view by tapping the delete icon and
+confirming the dialog.
+History and detail views do not play live tempo cues.
+
+== CSV export
+
+The *CSV* button in the Session Result card copies CSV for the currently entered
+split data to the system clipboard.
+The CSV includes:
+
+* Session id.
+* Mode.
+* Split index.
+* Target split in milliseconds.
+* Actual split in milliseconds.
+* Split error in milliseconds.
+* Stroke count.
+
+CSV export does not require saving the result first.
+
+== Persistence
+
+Tempo Trainer introduces database version `12` with these tables:
+
+`tempo_templates`:: Stores named, profile-scoped cue configurations.
+`tempo_session_results`:: Stores logged split data, stroke counts, RPE, and notes.
+
+The training template DAO owns tempo template and tempo result persistence
+alongside the existing interval and dryland template storage.
+
+== Current limitations
+
+The following capabilities are not yet implemented:
+
+* Stroke-rate ramp test preset.
+* Per-rep or per-segment race modelling.
+* Wearable, Bluetooth, or external device integration.

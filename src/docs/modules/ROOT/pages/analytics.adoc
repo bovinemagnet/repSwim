@@ -1,0 +1,63 @@
+= Analytics
+
+The Analytics screen gives you a consolidated view of your swimming progress, summarising session history, distance trends, pace improvement, and personal bests derived from all recorded swim sessions.
+
+== Reaching this page
+
+Navigate to `/analytics` using the *Analytics* entry in the bottom navigation bar (phones) or the navigation rail (wider layouts).
+
+include::partial$profile-scoping.adoc[]
+
+== Common actions
+
+The Analytics screen is read-only — there are no controls to tap or forms to fill in.
+All values update automatically whenever you save a new swim session.
+
+On phones the layout is a single column: stat cards, then the *Last 7 Days* bar chart, then the *Pace Trend* line chart, and finally *PB Highlights*.
+On wider screens (1000 dp and above) the two charts appear side by side and the four stat cards are laid out in a single row.
+
+Tapping a bar in the *Last 7 Days* chart shows a tooltip with the exact distance for that day.
+Tapping a point in the *Pace Trend* chart shows a tooltip with the formatted pace (mm:ss) for that session.
+
+== Metrics and charts
+
+Sessions::
+The total number of swim sessions recorded across all time.
+
+Total Distance::
+The cumulative distance across all sessions, displayed in metres below 1 000 m or in kilometres (one decimal place) at 1 000 m and above.
+
+Avg Pace::
+Your average pace per 100 m across all sessions, expressed as mm:ss /100m.
+Calculated as total elapsed time divided by total distance, scaled to 100 m.
+Displays `--` when no distance has been recorded yet.
+
+Consistency::
+A percentage score indicating how regularly you have swum over the last 7 days.
+Each distinct day on which at least one session was logged in the last 7 days contributes to the score, expressed as a proportion of a three-sessions-per-week target.
+The score is clamped between 0 % and 100 %.
+
+Last 7 Days (bar chart)::
+A vertical bar chart showing the total distance swum on each of the last seven days, with today on the right (index 6) and six days ago on the left (index 0).
+Day abbreviations (Mon, Tue, etc.) appear along the horizontal axis; distance in metres appears on the vertical axis.
+Bars for days with no activity are rendered in a muted colour.
+
+Pace Trend (line chart)::
+A curved line chart plotting your pace per 100 m for up to the seven most recent sessions that recorded a non-zero distance, ordered chronologically left to right.
+The horizontal axis shows the date of each session; the vertical axis shows pace in mm:ss.
+A dot is drawn at each data point.
+
+PB Highlights::
+A list of up to three personal bests, sorted by most recently achieved.
+Each entry shows the stroke and distance (for example *Freestyle 100m*), the date it was achieved, and the best time formatted as mm:ss.
+
+== Expected behaviour
+
+All data is computed from swim sessions and personal bests stored in the local SQLite database; no network connection is required.
+
+.Empty states
+* If no sessions exist in the last 7 days, the *Last 7 Days* chart is replaced by the message "No swim data in the last 7 days".
+* If fewer than two sessions with a non-zero distance exist across all time, the *Pace Trend* chart is replaced by the message "Save more sessions to see pace trends".
+* If no personal bests have been recorded, the *PB Highlights* section displays the message "Save swim sessions with lap times to build PB highlights".
+
+NOTE: Pace is calculated only for sessions where a non-zero distance was recorded. Sessions with a distance of zero are excluded from the pace trend and from the average pace calculation.

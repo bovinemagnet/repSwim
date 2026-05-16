@@ -1,0 +1,113 @@
+= Interval timer
+
+The interval timer automates structured swim sets by counting down alternating swim and rest periods, advancing through configurable sets and reps, and signalling each phase transition visually so you can keep your eyes on the pool.
+
+== Reaching this page
+
+The interval timer is available at the route `/intervals`.
+It sits outside the main bottom-navigation bar and is reached from the Home screen or from any in-app link that navigates to `/intervals`.
+
+== Common actions
+
+=== Configuring a workout
+
+Enter values in the *Workout* card and tap *Apply*.
+Configuration fields are disabled while the timer is running; tap *Reset* first if you need to change them mid-session.
+
+=== Starting and pausing
+
+Tap *Start* to begin the countdown.
+The button changes to *Pause* while the timer is running.
+Tap *Pause* to freeze the current countdown without losing your place in the set/rep sequence.
+Tap *Start* again to resume.
+
+=== Skipping a phase
+
+Tap *Skip* to end the current phase immediately and move to the next one.
+From the *Ready* state, *Skip* advances the display to the *Swim* phase but does not start the countdown — tap *Start* to begin timing.
+Skip is disabled once the workout is complete.
+
+=== Resetting
+
+Tap *Reset* at any time to stop the timer and return all counters to the beginning of the first set and rep.
+Your configuration (sets, reps, swim seconds, rest seconds) is preserved.
+
+=== Saving and loading templates
+
+While the timer is not running, tap *Save Template* to give the current configuration a name and store it for later use.
+Tap *Load Template* to open a menu of saved templates; selecting one immediately applies its settings and updates the configuration fields.
+Previously saved templates can be deleted via the three-dot menu (visible when at least one template exists).
+
+NOTE: Template actions (load, save, delete) are disabled while the timer is running.
+
+== Important fields
+
+Sets::
+The number of times the full rep sequence is repeated.
+Must be a positive integer.
+Defaults to `3`.
+
+Reps::
+The number of swim/rest cycles within each set.
+Must be a positive integer.
+Defaults to `4`.
+
+Swim sec::
+The duration of each swim phase, in seconds.
+Must be a positive integer.
+Defaults to `45`.
+
+Rest sec::
+The duration of each rest phase, in seconds.
+Must be zero or a positive integer.
+Set to `0` to skip rest periods entirely and go directly to the next swim.
+Defaults to `15`.
+
+== Expected behaviour
+
+=== Phase sequence
+
+When *Start* is tapped from the ready state the timer enters the *Swim* phase and begins counting down from the configured swim duration.
+
+When the swim countdown reaches zero:
+
+* If a rest duration greater than zero is configured and more work remains, the timer transitions to the *Rest* phase and counts down from the rest duration.
+* If rest is set to zero, or when the rest phase itself completes, the timer advances to the next rep within the current set.
+* When all reps in a set are exhausted, the set counter increments and reps restart from 1.
+* When all sets are complete the timer enters the *Complete* phase, stops automatically, and disables the *Start* and *Skip* buttons.
+
+=== Visual cues
+
+The central timer panel changes background colour to indicate the current phase:
+
+[cols="1,2",options="header"]
+|===
+|Phase
+|Colour
+
+|Ready
+|Secondary container (neutral)
+
+|Swim
+|Primary container (prominent)
+
+|Rest
+|Tertiary container (subdued)
+
+|Complete
+|Surface container highest (neutral)
+|===
+
+The panel also shows:
+
+* A large countdown in `MM:SS` format.
+* The current phase label (*Ready*, *Swim*, *Rest*, or *Complete*).
+* The current set and rep position (for example, `Set 2/3  Rep 3/4`).
+
+A linear progress bar below the controls shows overall progress through the total number of rounds (`sets × reps`).
+The label beneath it reads `Round N of M`.
+
+=== No audio cues
+
+The interval timer provides visual feedback only.
+There are no audio beeps or haptic signals on phase transitions.

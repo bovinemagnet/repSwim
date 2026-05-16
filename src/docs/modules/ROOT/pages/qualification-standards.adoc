@@ -1,0 +1,121 @@
+= Qualification standards
+
+The Qualification Standards screen lets you manage age-based gold, silver, and bronze time thresholds for each event, and browse imported meet qualifying times.
+When a race time is recorded, the app compares it against the manual standards for the active swimmer profile and labels it with the best tier it achieves.
+
+== Reaching this page
+
+The Qualification Standards screen is not directly reachable from the bottom navigation bar.
+Navigate to it from the xref:race-times.adoc[Race Times] screen by tapping the trophy icon (*Qualification standards*) in the app bar.
+
+[cols="1,3"]
+|===
+|Route |Screen
+
+|`/races`
+|Race times list and management screen
+
+|`/qualification-standards`
+|Qualification Standards screen (reachable via the trophy icon in the Race Times app bar)
+|===
+
+== Common actions
+
+=== Browsing medal standards by age
+
+When manual medal standards exist, a *Medal standards by age* panel appears at the top of the screen.
+Use the *Age* drop-down inside the panel to choose the swimmer age you want to inspect.
+The panel displays a horizontally scrollable table of all events configured for that age, showing the Event (distance and stroke), Course, Gold, Silver, and Bronze time thresholds.
+Below the panel, each individual manual standard is listed as a card showing the age, event, course, and the three tier times as chips.
+
+=== Adding a manual standard
+
+Tap the *Add Standard* floating action button to open the *Add standard* dialogue.
+Complete all required fields and tap *Add* to save the entry.
+
+=== Editing a manual standard
+
+Tap the edit icon (pencil) on a standard card to open the *Edit standard* dialogue pre-filled with the existing values.
+Amend any fields and tap *Save* to apply the changes.
+
+=== Deleting a manual standard
+
+Tap the delete icon (bin) on a standard card.
+A confirmation dialogue (*Delete qualification standard?*) names the age, distance, and stroke before asking you to confirm.
+Tap *Delete* to remove the entry permanently, or *Cancel* to dismiss without change.
+
+=== Importing Victorian Metro SC meet standards
+
+Tap the import icon (*Import Victorian Metro SC standards*) in the app bar to load the bundled 2026/27 Uncloud Victorian Metro SC Championships qualifying times.
+A snack-bar confirms how many standards were imported from that source.
+If the import fails, the snack-bar shows the error message.
+
+Imported meet standards appear below the manual medal standards in a separate *Imported meet standards* section.
+Each card shows the event title, age group label, course, and either the qualifying time, the MC points threshold, or a *No qualifying time* chip when neither applies.
+Relay events use a groups icon and display the relay event name.
+
+== Important fields
+
+The *Add standard* / *Edit standard* dialogue contains the following fields.
+
+Age:: (`age`) — The swimmer age to which this standard applies.
+Must be a whole number between 1 and 120.
+Default when adding a new standard is `12`.
+
+Distance (m):: (`distance`) — The event distance in metres.
+Must be a positive integer.
+Default when adding a new standard is `100`.
+
+Stroke:: (`stroke`) — The swimming stroke for the event.
+Selected from the same stroke list used throughout the app (Freestyle, Backstroke, Breaststroke, Butterfly, Individual Medley, and Mixed).
+
+Course:: (`course`) — The pool configuration for the event.
+Three options are available:
++
+[cols="1,2"]
+|===
+|Code |Label
+
+|`SCM`
+|Short course meters (25 m pool)
+
+|`SCY`
+|Short course yards
+
+|`LCM`
+|Long course meters (50 m pool)
+|===
++
+The default when adding a new standard is *Short course meters*.
+
+Gold time (csec):: (`goldTime`) — The qualifying threshold for the gold tier, entered as a positive integer number of centiseconds.
+Must be the fastest (numerically smallest) of the three thresholds.
+Stored internally in milliseconds; displayed throughout the app in `mm:ss.cc` format.
+
+Silver time (csec):: (`silverTime`) — The qualifying threshold for the silver tier, entered as a positive integer number of centiseconds.
+Must be at or slower than the gold time.
+
+Bronze time (csec):: (`bronzeTime`) — The qualifying threshold for the bronze tier, entered as a positive integer number of centiseconds.
+Must be at or slower than the silver time.
+The form validates all three values together and shows `Gold must be fastest` on the bronze field if the ordering is violated.
+
+== Expected behaviour
+
+Tier ordering:: Gold must be the fastest (lowest) time, followed by silver, then bronze.
+The form enforces this on submission: if gold is not ≤ silver ≤ bronze the save is blocked.
+The matching service also silently ignores any standard that violates this ordering when evaluating race times.
+
+Race matching:: When a race time is saved, the app looks for a manual standard that matches the active swimmer profile, the swimmer's current age, the event distance, the stroke, and the course type.
+If a matching standard is found, the race earns the best tier whose threshold it meets:
+
+* *Gold* — the race time is at or below the gold threshold.
+* *Silver* — the race time misses gold but is at or below the silver threshold.
+* *Bronze* — the race time misses silver but is at or below the bronze threshold.
+
+Standards that are profile-scoped:: Manual standards belong to the active swimmer profile (`profileId`).
+They are not shared between profiles.
+
+Empty state:: When no manual standards and no imported meet standards exist, the screen shows the message *No qualification standards configured.*
+
+Sync:: Manual standards queue create, update, and delete mutations in the local sync queue as `qualification_standard` payloads, ready for a future remote sync.
+Imported meet standards are bundled reference data and are not queued for remote sync.

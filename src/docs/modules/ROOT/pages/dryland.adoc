@@ -1,0 +1,95 @@
+= Dryland training
+
+The Dryland training screen lets you record and review out-of-water workouts — strength, conditioning, and other gym-based sessions — alongside your swim history.
+
+== Reaching this page
+
+Navigate to *Dryland Workouts* via the bottom navigation bar or rail (route `/dryland`).
+The screen opens with a chronological list of your logged workouts.
+When no workouts have been recorded yet, a prompt invites you to add your first entry.
+
+include::partial$profile-scoping.adoc[]
+
+== Common actions
+
+=== Log a new workout
+
+Tap *New Workout* (the floating action button at the bottom of the screen) to open the workout entry sheet.
+Fill in the date, an optional notes field, and at least one exercise, then tap *Save*.
+
+=== Edit an existing workout
+
+Open the overflow menu (three-dot icon) on any workout card and choose *Edit*.
+The same entry sheet opens pre-filled with the existing values.
+Change any fields and tap *Save* to update the record.
+
+=== Delete a workout
+
+Open the overflow menu on a workout card and choose *Delete*.
+A confirmation dialogue asks you to confirm before the workout and all its exercises are removed.
+
+=== Save a workout as a routine template
+
+Open the overflow menu on any workout card and choose *Save as routine*.
+Enter a name in the dialogue and tap *Save*.
+The workout's exercises are stored as a reusable template.
+
+=== Use a routine template
+
+Tap the folder icon in the top-right corner of the screen to open the *Routine Templates* sheet.
+Each saved template shows its name and exercise count.
+Tap *Use routine* to create a new workout dated today, pre-filled with the template's exercises.
+To remove a template you no longer need, tap the delete icon next to it.
+
+== Important fields
+
+The following fields are recorded for each workout and its exercises.
+
+=== Workout fields
+
+`Date`::
+The date the session took place.
+Defaults to today; tap the date row in the entry sheet to pick a different date.
+Dates before 2000 and future dates cannot be selected.
+
+`Notes` (optional)::
+Free-text remarks about the session — intensity, conditions, or anything else worth recording.
+Displayed below the exercise list when a workout card is expanded.
+
+=== Exercise fields
+
+Each workout must contain at least one exercise.
+Exercises are added individually within the workout entry sheet.
+
+`Exercise name`::
+A short description of the movement (for example, _Pull-ups_ or _Squat_).
+This field is required.
+
+`Sets`::
+The number of sets performed.
+Must be a positive integer.
+Defaults to `3`.
+
+`Reps`::
+The number of repetitions per set.
+Must be a positive integer.
+Defaults to `10`.
+
+`Weight (kg)` (optional)::
+The load used, in kilograms.
+Leave blank for bodyweight exercises.
+Decimal values are accepted (for example, `22.5`).
+
+== Expected behaviour
+
+On *Save*, the workout and all its exercises are written to the local SQLite database and the list on screen refreshes immediately.
+No network connection is required.
+
+On *Delete* (confirmed), the workout record and every exercise belonging to it are removed from the database.
+A brief snackbar confirms the deletion.
+
+[NOTE]
+====
+Dryland workouts are queued for future synchronisation in the background.
+The queue operates silently; a failure to enqueue does not prevent the local save from completing.
+====
