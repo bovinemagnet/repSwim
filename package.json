@@ -1,0 +1,13 @@
+{
+  "name": "repswim-docs",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Antora documentation build for repSwim",
+  "scripts": {
+    "docs:build": "antora antora-playbook.yml"
+  },
+  "devDependencies": {
+    "@antora/cli": "^3.1.0",
+    "@antora/site-generator": "^3.1.0"
+  }
+}
