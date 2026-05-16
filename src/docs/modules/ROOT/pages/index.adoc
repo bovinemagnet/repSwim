@@ -1,3 +1,49 @@
 = repSwim documentation
 
-Documentation for the repSwim swimming training app.
+repSwim is an offline-first swimming training app.
+It records swim sessions, tracks personal bests, and provides a set of in-pool training tools — all stored locally on the device, with no account or network connection required.
+
+== Offline-first by design
+
+Every session, lap, profile, personal best, race time, and template is written to a local SQLite database the moment you create it.
+The app is fully usable with no network connection.
+A sync layer is in place for a future server, but there is no live backend yet — see xref:sync-settings.adoc[Sync settings].
+
+== The Home dashboard
+
+The Home screen is the app's entry point. It shows:
+
+* A *summary card* with today's date and a snapshot of your last recorded session — distance, time, and stroke — or a prompt to start your first swim.
+* A *Quick Actions* grid linking to the most-used tools: New Swim, Intervals, Timer, Dryland, Personal Bests, Tempo, and Analytics.
+* A *Recent Sessions* list of your latest swims, with a *View all* link to the full session history.
+
+The app bar holds a swimmer switcher and shortcuts to Analytics and Sync settings.
+
+== Documentation map
+
+=== Getting started
+
+* xref:profiles.adoc[Profiles] — create a swimmer profile; the active profile scopes all data in the app.
+
+=== Training tools
+
+* xref:swim-sessions.adoc[Swim sessions] — record, review, and edit swim sessions.
+* xref:stopwatch.adoc[Stopwatch] — time a swim and capture laps.
+* xref:interval-timer.adoc[Interval timer] — run structured swim and rest sets.
+* xref:tempo-trainer.adoc[Tempo trainer] — rhythm cues for cadence, pacing, and breathing.
+* xref:dryland.adoc[Dryland training] — log out-of-water workouts.
+
+=== Records and races
+
+* xref:personal-bests.adoc[Personal bests] — fastest times for each stroke and distance.
+* xref:analytics.adoc[Analytics] — distance, pace, and consistency trends.
+* xref:race-times.adoc[Race times] — record competition results.
+* xref:qualification-standards.adoc[Qualification standards] — age-based medal standards.
+
+=== Data and sync
+
+* xref:sync-settings.adoc[Sync settings] — offline-first behaviour and the outbound sync queue.
+
+=== Contributing
+
+* xref:contributing.adoc[Adding documentation] — how to document a new screen or feature.
