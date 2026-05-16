@@ -13,12 +13,14 @@ void main() {
 
     final columns = await database.rawQuery('PRAGMA table_info(coach_shares)');
     final names = columns.map((row) => row['name'] as String).toSet();
-    expect(names, containsAll(<String>[
-      'profile_id',
-      'enabled',
-      'shared_categories_json',
-      'updated_at',
-    ]));
+    expect(
+        names,
+        containsAll(<String>[
+          'profile_id',
+          'enabled',
+          'shared_categories_json',
+          'updated_at',
+        ]));
 
     await db.close();
   });
