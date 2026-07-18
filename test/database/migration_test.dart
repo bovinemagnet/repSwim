@@ -11,7 +11,7 @@ void main() {
   });
 
   group('database migrations', () {
-    for (final oldVersion in [1, 3, 4, 5, 7, 8, 9, 10, 11]) {
+    for (final oldVersion in [1, 3, 4, 5, 7, 8, 9, 10, 11, 12]) {
       test('upgrades version $oldVersion to current schema', () async {
         final path = p.join(
           Directory.systemTemp.path,
@@ -40,6 +40,7 @@ void main() {
         expect(await _hasTable(db, 'meet_qualification_standards'), isTrue);
         expect(await _hasTable(db, 'tempo_templates'), isTrue);
         expect(await _hasTable(db, 'tempo_session_results'), isTrue);
+        expect(await _hasTable(db, 'coach_shares'), isTrue);
         expect(await _hasColumn(db, 'swimmer_profiles', 'photo_uri'), isTrue);
         expect(
           await _hasColumn(db, 'swimmer_profiles', 'preferred_strokes_json'),
@@ -274,6 +275,47 @@ Future<void> _createOldSchema(Database db, int version) async {
         valid_from INTEGER NOT NULL,
         competition_start INTEGER NOT NULL,
         competition_end INTEGER NOT NULL
+      )
+    ''');
+  }
+  if (version >= 12) {
+    await db.execute('''
+      CREATE TABLE tempo_templates (
+        id TEXT PRIMARY KEY,
+        profile_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        mode TEXT NOT NULL,
+        pool_length_meters INTEGER NOT NULL,
+        target_distance_meters INTEGER NOT NULL,
+        target_time_milliseconds INTEGER NOT NULL,
+        stroke_rate REAL NOT NULL,
+        breath_every_strokes INTEGER NOT NULL,
+        audible_enabled INTEGER NOT NULL,
+        vibration_enabled INTEGER NOT NULL,
+        visual_flash_enabled INTEGER NOT NULL,
+        spoken_enabled INTEGER NOT NULL,
+        accent_every INTEGER NOT NULL,
+        safety_warning_acknowledged INTEGER NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE tempo_session_results (
+        id TEXT PRIMARY KEY,
+        profile_id TEXT NOT NULL,
+        template_id TEXT,
+        mode TEXT NOT NULL,
+        started_at INTEGER NOT NULL,
+        completed_at INTEGER,
+        target_distance_meters INTEGER NOT NULL,
+        pool_length_meters INTEGER NOT NULL,
+        target_time_milliseconds INTEGER NOT NULL,
+        target_stroke_rate REAL NOT NULL,
+        actual_splits_milliseconds_json TEXT NOT NULL,
+        stroke_counts_json TEXT NOT NULL,
+        rpe INTEGER,
+        notes TEXT
       )
     ''');
   }

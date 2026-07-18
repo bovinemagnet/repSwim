@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../coach/presentation/providers/coach_providers.dart';
 import '../../domain/entities/swimmer_profile.dart';
 import '../../domain/services/profile_details_service.dart';
 import '../providers/profile_providers.dart';
@@ -111,9 +113,21 @@ class ProfilesScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profilesAsync = ref.watch(profilesProvider);
     final currentProfileId = ref.watch(currentProfileIdProvider);
+    final sharedIds =
+        ref.watch(sharedProfileIdsProvider).valueOrNull ?? const [];
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Swimmer Profiles')),
+      appBar: AppBar(
+        title: const Text('Swimmer Profiles'),
+        actions: [
+          if (sharedIds.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.supervisor_account_outlined),
+              tooltip: 'Coach view',
+              onPressed: () => context.push('/coach'),
+            ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showProfileDialog(context, ref),
         icon: const Icon(Icons.add),
@@ -131,9 +145,11 @@ class ProfilesScreen extends ConsumerWidget {
             itemBuilder: (context, index) {
               final profile = profiles[index];
               final isCurrent = profile.id == currentProfileId;
+              final isShared = sharedIds.contains(profile.id);
               return _ProfileTile(
                 profile: profile,
                 isCurrent: isCurrent,
+                isSharedWithCoach: isShared,
                 onSelect: () {
                   ref.read(selectedProfileIdProvider.notifier).state =
                       profile.id;
@@ -144,6 +160,8 @@ class ProfilesScreen extends ConsumerWidget {
                   profile: profile,
                 ),
                 onArchive: () => _archiveProfile(context, ref, profile),
+                onCoachSharing: () =>
+                    context.push('/coach/sharing/${profile.id}'),
               );
             },
           );
@@ -160,16 +178,20 @@ class _ProfileTile extends StatelessWidget {
   const _ProfileTile({
     required this.profile,
     required this.isCurrent,
+    required this.isSharedWithCoach,
     required this.onSelect,
     required this.onEdit,
     required this.onArchive,
+    required this.onCoachSharing,
   });
 
   final SwimmerProfile profile;
   final bool isCurrent;
+  final bool isSharedWithCoach;
   final VoidCallback onSelect;
   final VoidCallback onEdit;
   final VoidCallback onArchive;
+  final VoidCallback onCoachSharing;
 
   @override
   Widget build(BuildContext context) {
@@ -232,11 +254,36 @@ class _ProfileTile extends StatelessWidget {
                         ),
                   ),
                 ),
+                if (isSharedWithCoach) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.supervisor_account_outlined,
+                        size: 14,
+                        color: colorScheme.primary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Shared with coach',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: colorScheme.primary,
+                            ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
             trailing: Wrap(
               spacing: 4,
               children: [
+                IconButton(
+                  icon: const Icon(Icons.supervisor_account_outlined),
+                  tooltip: 'Coach sharing',
+                  onPressed: onCoachSharing,
+                ),
                 IconButton(
                   icon: const Icon(Icons.edit_outlined),
                   tooltip: 'Edit swimmer',
